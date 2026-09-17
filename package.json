@@ -11,7 +11,8 @@
     "map:tajweed": "node scripts/build-tajweed-map.mjs",
     "typecheck": "tsc --noEmit",
     "map:madd": "node scripts/build-madd-map.mjs",
-    "check:madd": "node scripts/check-madd-detector.mjs"
+    "check:madd": "node scripts/check-madd-detector.mjs",
+    "map:phonemes": "node scripts/build-phoneme-references.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
