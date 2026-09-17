@@ -46,7 +46,10 @@ function parseUnits(word: string): Unit[] {
     const character = chars[index];
 
     if (isMark(character) || character === "ـ") {
-      if (units.length) units[units.length - 1].marks.push(character);
+      if (units.length) {
+        units[units.length - 1].marks.push(character);
+        units[units.length - 1].end = index + 1;
+      }
       continue;
     }
 
