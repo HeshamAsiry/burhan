@@ -49,13 +49,37 @@ function pickEvenly<T>(items: T[], count: number) {
   return Array.from({ length: count }, (_, i) => items[Math.floor(i * items.length / count)]);
 }
 
-function buildRanges(ayahs: Array<{ surah_id: number; ayah_number: number }>, count: number, length: number) {
-  const usable = ayahs.filter((_, i) => i + length <= ayahs.length);
-  return pickEvenly(usable, count).map((start) => {
-    const index = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
-    const end = ayahs[index + length - 1];
-    return { type: "recite_range" as const, start, end };
-  });
+function buildRanges(
+  ayahs: Array<{ surah_id: number; ayah_number: number; juz_number?: number }>,
+  count: number,
+  length: number,
+  currentJuz: number,
+  cumulative: boolean,
+) {
+  if (!cumulative) {
+    const usable = ayahs.filter((_, i) => i + length <= ayahs.length);
+    return pickEvenly(usable, count).map((start) => {
+      const index = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
+      const end = ayahs[index + length - 1];
+      return { type: "recite_range" as const, start, end };
+    });
+  }
+
+  const current = ayahs.filter((a) => a.juz_number === currentJuz);
+  const previous = ayahs.filter((a) => a.juz_number !== currentJuz);
+  const currentCount = Math.min(count, Math.max(1, Math.ceil(count * 0.6)));
+  const previousCount = count - currentCount;
+
+  const make = (pool: typeof ayahs, n: number) => {
+    const usable = pool.filter((_, i) => i + length <= pool.length);
+    return pickEvenly(usable, n).map((start) => {
+      const index = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
+      const end = ayahs[index + length - 1];
+      return { type: "recite_range" as const, start, end };
+    });
+  };
+
+  return [...make(current, currentCount), ...make(previous, previousCount)];
 }
 
 export async function buildTestBlueprint(input: BlueprintInput) {
@@ -85,7 +109,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
     anchorSpecs.push({ type: "mutashabihat", anchor: candidate.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, threshold: input.level >= 6 ? 0.55 : 0.45, limit: 30, juz: input.juz });
   }
 
-  const ranges = buildRanges(ayahs, rangeCount, level.rangeAyahs);
+  const ranges = buildRanges(ayahs, rangeCount, level.rangeAyahs, input.juz, cumulative);
   const questions = [...anchorSpecs, ...ranges];
   return {
     juz: input.juz, level: input.level, test_type: input.testType ?? "custom", question_count: questions.length,
