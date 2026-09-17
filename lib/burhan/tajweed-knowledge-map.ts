@@ -84,6 +84,12 @@ function firstLetterAfterNoonSukun(value: string) {
   return null;
 }
 
+function firstBaseLetterAfterArticle(value: string) {
+  const letters = baseLetters(value);
+  if (letters.length < 3 || letters[0] !== "ا" || letters[1] !== "ل") return null;
+  return letters[2] ?? null;
+}
+
 function classifyNoonOrTanween(following: string) {
   if (IZHAR_LETTERS.has(following)) return "noon_izhar";
   if (IDGHAM_WITH_GHUNNAH_LETTERS.has(following)) return "noon_idgham_ghunnah";
@@ -126,8 +132,8 @@ export function extractDeterministicTajweedOccurrences(
     const firstLetter = firstBaseLetter(word);
     const lastLetter = lastBaseLetter(word);
 
-    if (firstLetter === "ا" && cleaned.length >= 3 && cleaned.slice(0, 2) === "ال" && nextWord) {
-      const articleTarget = firstBaseLetter(nextWord);
+    if (cleaned.startsWith("ال")) {
+      const articleTarget = firstBaseLetterAfterArticle(word);
       if (articleTarget && SUN_LETTERS.has(articleTarget)) {
         addOccurrence(
           occurrences,
@@ -135,7 +141,7 @@ export function extractDeterministicTajweedOccurrences(
           index,
           index,
           word,
-          nextWord,
+          word,
           { article: "al", following_letter: articleTarget, assimilation: true },
         );
       } else if (articleTarget && MOON_LETTERS.has(articleTarget)) {
@@ -145,7 +151,7 @@ export function extractDeterministicTajweedOccurrences(
           index,
           index,
           word,
-          nextWord,
+          word,
           { article: "al", following_letter: articleTarget, assimilation: false },
         );
       }
