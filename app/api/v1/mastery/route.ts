@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdmin } from "../../../../../lib/supabase-admin";
+import { getSupabaseAdmin } from "../../../../lib/supabase-admin";
 
 const schema = z.object({
   external_user_id: z.string().trim().min(1).max(200),
