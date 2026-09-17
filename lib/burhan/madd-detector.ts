@@ -166,6 +166,24 @@ export function detectMaddOccurrences(
 
     if (!isMaddLetter(unit, previous)) continue;
 
+    if (isHamzaUnit(previous)) {
+      occurrences.push(
+        buildOccurrence(
+          word,
+          next,
+          wordIndex,
+          unit,
+          undefined,
+          "madd_badl",
+          {
+            cause: "preceding_hamza",
+            reference_duration: "route_profile",
+          },
+        ),
+      );
+      continue;
+    }
+
     if (following && isHamzaUnit(following)) {
       occurrences.push(
         buildOccurrence(
@@ -243,7 +261,7 @@ export function detectMaddOccurrences(
     if (i === units.length - 2) {
       const finalUnit = units.at(-1);
       if (finalUnit && !hasMark(finalUnit, SUKUN) && finalUnit.marks.some(
-        (mark) => mark === FATHA || mark === DAMMA || mark === KASRA
+        (mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ"
       )) {
         occurrences.push(
           buildOccurrence(
@@ -301,8 +319,11 @@ export function detectMaddOccurrences(
   if (
     finalUnit &&
     units.length >= 2 &&
-    (finalUnit.base !== "ا" && finalUnit.base !== "ى") &&
-    hasMark(finalUnit, FATHA)
+    finalUnit.base !== "ا" &&
+    finalUnit.base !== "ى" &&
+    finalUnit.marks.some(
+      (mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ"
+    )
   ) {
     const leanUnit = units.at(-2);
     const leanPrevious = units.at(-3);
