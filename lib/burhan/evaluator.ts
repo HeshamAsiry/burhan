@@ -1,4 +1,17 @@
-import { normalizeArabic } from "../../scripts/normalize-arabic";
+function normalizeForEvaluation(input: string) {
+  return input
+    .normalize("NFKC")
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
+    .replace(/[إأٱآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/ـ/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
 
 export type EvaluationStatus = "correct" | "partial" | "incorrect";
 
@@ -13,7 +26,7 @@ export type QuestionEvaluation = {
     matched_tokens?: number;
     expected_tokens?: number;
     answer_tokens?: number;
-    missing_tokens?: number;
+    missing_tokens?: number;\n    missing_occurrences?: number;
     extra_tokens?: number;
     surah_correct?: boolean;
     details?: Array<Record<string, unknown>>;
@@ -24,7 +37,7 @@ const CORRECT_THRESHOLD = 0.95;
 const PARTIAL_THRESHOLD = 0.70;
 
 function tokens(text: string) {
-  return normalizeArabic(text).split(/\s+/).filter(Boolean);
+  return normalizeForEvaluation(text).split(/\s+/).filter(Boolean);
 }
 
 function lcsLength(a: string[], b: string[]) {
@@ -183,7 +196,7 @@ export function evaluateQuestion(question: {
       feedback: {
         expected_occurrences: expectedOccurrences.length,
         answered_occurrences: result.answered,
-        missing_tokens: result.missing,
+        missing_occurrences: result.missing,
         surah_correct: surahCorrect,
         details: result.details,
       },
