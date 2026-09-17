@@ -1,13 +1,14 @@
 import { getSupabaseAdmin } from "../supabase-admin";
 import { generateMutashabihatQuestion } from "./question-generator";
 import { generateReciteRangeQuestion } from "./recite-range-generator";
+import { buildTestBlueprint } from "./blueprint-engine";
 
 export type TestQuestionSpec =
-  | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number }
+  | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } };
 
 export async function generateTest(input: {
-  juz: number; level: number; testType?: string; questions: TestQuestionSpec[]; persist?: boolean;
+  juz: number; level: number; testType?: string; questions?: TestQuestionSpec[]; questionCount?: number; persist?: boolean;
 }) {
   if (!input.questions.length) throw new Error("At least one question is required.");
 
@@ -41,9 +42,9 @@ export async function generateTest(input: {
     .select("id,position,question_type,prompt,expected_answer,difficulty");
 
   if (questionError) {
-    await db.from("tests").delete().eq("id", test.id);
+    await db.from("tests").delete().eq("id", test.id);\n    if (blueprintId) await db.from("test_blueprints").delete().eq("id", blueprintId);
     throw new Error(questionError.message);
   }
 
-  return { id: test.id, status: test.status, level: test.level, test_type: test.test_type, juz: test.juz_number, questions: inserted ?? [] };
+  return { id: test.id, status: test.status, level: test.level, test_type: test.test_type, juz: test.juz_number, blueprint_id: blueprintId, blueprint, questions: inserted ?? [] };
 }
