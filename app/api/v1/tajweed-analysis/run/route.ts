@@ -8,6 +8,7 @@ import {
 } from "../../../../../lib/burhan/madd-acoustic-evaluator";
 import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
+import { runMaddAcousticProvider } from "../../../../../lib/burhan/madd-acoustic-provider";
 
 const schema = z.object({
   attempt_id: z.string().uuid(),
@@ -262,9 +263,25 @@ export async function POST(request: Request) {
       provider.predicted_phonemes,
     );
 
+    const hasDedicatedMaddProvider =
+      Boolean(process.env.BURHAN_MADD_ACOUSTIC_PROVIDER_URL?.trim());
+
+    const dedicatedMaddProvider = hasDedicatedMaddProvider
+      ? await runMaddAcousticProvider({
+          audioUrl: parsed.data.audio_url,
+          questionId: question.id,
+          targets: maddTargets,
+        })
+      : null;
+
+    const maddObservations =
+      dedicatedMaddProvider?.observations ??
+      provider.madd_observations ??
+      [];
+
     const maddMeasurements = evaluateMaddObservations(
       maddTargets,
-      provider.madd_observations ?? [],
+      maddObservations,
     );
     const maddSummary = summarizeMaddMeasurements(maddMeasurements);
     const measuredMadd = maddMeasurements.filter(
@@ -367,7 +384,12 @@ export async function POST(request: Request) {
           summary: {
             ...(provider.summary ?? {}),
             phoneme_reference_version: referenceVersion,
-            madd: maddSummary,
+            madd: {
+              ...maddSummary,
+              provider: dedicatedMaddProvider?.provider ?? null,
+              model: dedicatedMaddProvider?.model ?? null,
+              provider_confidence: dedicatedMaddProvider?.confidence ?? null,
+            },
             pronunciation: {
               score: phonemeEvaluation.score,
               distance: phonemeEvaluation.distance,
@@ -469,6 +491,13 @@ export async function POST(request: Request) {
         model: provider.model,
         confidence: provider.confidence,
       },
+      madd_provider: dedicatedMaddProvider
+        ? {
+            name: dedicatedMaddProvider.provider,
+            model: dedicatedMaddProvider.model,
+            confidence: dedicatedMaddProvider.confidence,
+          }
+        : null,
       review: {
         status: analysis.verdict_status,
         required: analysis.verdict_status === "needs_teacher_review",
