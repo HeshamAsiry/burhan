@@ -36,6 +36,6 @@ See docs/teacher-review.md for the review policy and API endpoints.
 
 ## Current Tajweed map
 
-The Supabase project currently contains 15 Tajweed rule definitions and 33,049 derived occurrences across the Quran for the deterministic/planned knowledge map. Madd and detailed Raa rules remain planned for acoustic/contextual analysis.
+The Supabase project contains the core Tajweed rule catalog and a populated derived knowledge map. Madd now has dedicated detection logic for natural, badal, muttasil, munfasil, and kalimi lazim patterns, with conditional map entries for arid li-sukun, leen, and iwad. Acoustic duration measurement is intentionally a separate layer.
 
 Server-side phoneme references are modeled in quran_phoneme_references. The table is intentionally empty until a suitable, licensed reference-phoneme source is selected.
