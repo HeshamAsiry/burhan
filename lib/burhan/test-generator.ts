@@ -13,6 +13,7 @@ export async function generateTest(input: {
   testType?: string;
   questions?: TestQuestionSpec[];
   questionCount?: number;
+  progression?: "from_30_to_1" | "from_1_to_30";
   persist?: boolean;
 }) {
   const blueprint = input.questions?.length
@@ -22,6 +23,7 @@ export async function generateTest(input: {
         level: input.level as 1 | 2 | 3 | 4 | 5 | 6 | 7,
         testType: (input.testType as "non_cumulative" | "cumulative" | "custom" | undefined),
         questionCount: input.questionCount,
+        progression: input.progression,
       });
   const specs = input.questions?.length ? input.questions : blueprint?.questions;
   if (!specs?.length) throw new Error("At least one question is required.");
