@@ -99,7 +99,7 @@ export async function runMaddAcousticProvider(input: {
   const observations = Array.isArray(payload?.observations)
     ? payload.observations
         .map(asObservation)
-        .filter((item): item is MaddObservation => item !== null)
+        .filter((item: MaddObservation | null): item is MaddObservation => item !== null)
     : [];
 
   const confidence =
@@ -109,7 +109,8 @@ export async function runMaddAcousticProvider(input: {
         ? Number(
             (
               observations.reduce(
-                (sum, item) => sum + item.confidence,
+                (sum: number, item: MaddObservation) =>
+                  sum + item.confidence,
                 0,
               ) / observations.length
             ).toFixed(4),
