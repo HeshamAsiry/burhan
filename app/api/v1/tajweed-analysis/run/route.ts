@@ -9,8 +9,27 @@ const schema = z.object({
   attempt_id: z.string().uuid(),
   question_id: z.string().uuid(),
   audio_url: z.string().url(),
-  reference_phonemes: z.array(z.string().trim().min(1).max(30)).min(1).max(5000),
 });
+
+function collectExpectedAyahIds(value: unknown, output = new Set<string>()): string[] {
+  if (Array.isArray(value)) {
+    for (const item of value) collectExpectedAyahIds(item, output);
+    return [...output];
+  }
+
+  if (!value || typeof value !== "object") return [...output];
+
+  const object = value as Record<string, unknown>;
+  if (typeof object.ayah_id === "string" && z.string().uuid().safeParse(object.ayah_id).success) {
+    output.add(object.ayah_id);
+  }
+
+  for (const nested of Object.values(object)) {
+    collectExpectedAyahIds(nested, output);
+  }
+
+  return [...output];
+}
 
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
@@ -50,14 +69,79 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "QUESTION_ATTEMPT_MISMATCH" }, { status: 409 });
     }
 
+    const expectedAyahIds = collectExpectedAyahIds(question.expected_answer);
+
+    if (!expectedAyahIds.length) {
+      return NextResponse.json(
+        { error: "QUESTION_HAS_NO_AYAH_REFERENCES" },
+        { status: 422 },
+      );
+    }
+
+    const { data: ayahs, error: ayahsError } = await db
+      .from("ayahs")
+      .select("id,surah_id,ayah_number")
+      .in("id", expectedAyahIds);
+
+    if (ayahsError) throw new Error(ayahsError.message);
+    if ((ayahs?.length ?? 0) !== new Set(expectedAyahIds).size) {
+      return NextResponse.json(
+        { error: "EXPECTED_AYAH_REFERENCE_NOT_FOUND" },
+        { status: 409 },
+      );
+    }
+
+    const orderedAyahs = [...(ayahs ?? [])].sort(
+      (a, b) => a.surah_id - b.surah_id || a.ayah_number - b.ayah_number,
+    );
+
+    const { data: references, error: referencesError } = await db
+      .from("quran_phoneme_references")
+      .select("ayah_id,phoneme_version,phonemes")
+      .in(
+        "ayah_id",
+        orderedAyahs.map((ayah) => ayah.id),
+      );
+
+    if (referencesError) throw new Error(referencesError.message);
+
+    if ((references?.length ?? 0) !== orderedAyahs.length) {
+      return NextResponse.json(
+        {
+          error: "PHONEME_REFERENCE_NOT_READY",
+          required_ayahs: orderedAyahs.length,
+          available_ayahs: references?.length ?? 0,
+        },
+        { status: 409 },
+      );
+    }
+
+    const referenceByAyah = new Map(
+      (references ?? []).map((row) => [row.ayah_id, row]),
+    );
+
+    const referencePhonemes = orderedAyahs.flatMap((ayah) => {
+      const value = referenceByAyah.get(ayah.id)?.phonemes;
+      if (!Array.isArray(value)) {
+        throw new Error("Invalid phoneme reference for ayah " + ayah.id);
+      }
+      return value.map((phoneme) => String(phoneme));
+    });
+
+    const referenceVersion = [
+      ...new Set(
+        (references ?? []).map((row) => String(row.phoneme_version)),
+      ),
+    ].join(",");
+
     const provider = await runPhonemeProvider({
       audioUrl: parsed.data.audio_url,
-      referencePhonemes: parsed.data.reference_phonemes,
+      referencePhonemes,
       questionId: question.id,
     });
 
     const phonemeEvaluation = comparePhonemes(
-      parsed.data.reference_phonemes,
+      referencePhonemes,
       provider.predicted_phonemes,
     );
 
@@ -140,6 +224,7 @@ export async function POST(request: Request) {
               : review.reasons,
           summary: {
             ...(provider.summary ?? {}),
+            phoneme_reference_version: referenceVersion,
             pronunciation: {
               score: phonemeEvaluation.score,
               distance: phonemeEvaluation.distance,
