@@ -10,6 +10,7 @@ const answerSchema = z.object({
 });
 
 const schema = z.object({
+  attempt_id: z.string().uuid().optional(),
   external_user_id: z.string().trim().min(1).max(200).optional(),
   answers: z.array(answerSchema).max(200).default([]),
 });
@@ -71,29 +72,74 @@ export async function POST(
     );
 
     const summary = summarizeEvaluations(evaluations);
-    const startedAt = new Date().toISOString();
     const submittedAt = new Date().toISOString();
+    const resultPayload = {
+      version: "burhan-evaluator-v1",
+      summary,
+      questions: evaluations,
+    };
 
-    const { data: attempt, error: attemptError } = await db
-      .from("test_attempts")
-      .insert({
-        test_id: testId,
-        external_user_id: parsed.data.external_user_id ?? null,
-        started_at: startedAt,
-        submitted_at: submittedAt,
-        score: summary.score,
-        mastery: summary.mastery,
-        result: {
-          version: "burhan-evaluator-v1",
-          summary,
-          questions: evaluations,
-        },
-      })
-      .select("id,test_id,external_user_id,started_at,submitted_at,score,mastery,result")
-      .single();
+    let attempt: any = null;
 
-    if (attemptError || !attempt) {
-      throw new Error(attemptError?.message ?? "Failed to create attempt.");
+    if (parsed.data.attempt_id) {
+      const { data: existing, error: existingError } = await db
+        .from("test_attempts")
+        .select("id,test_id,external_user_id,started_at,submitted_at,score,mastery,result")
+        .eq("id", parsed.data.attempt_id)
+        .maybeSingle();
+
+      if (existingError) throw new Error(existingError.message);
+      if (!existing) return NextResponse.json({ error: "ATTEMPT_NOT_FOUND" }, { status: 404 });
+      if (existing.test_id !== testId) {
+        return NextResponse.json({ error: "ATTEMPT_TEST_MISMATCH" }, { status: 409 });
+      }
+      if (existing.submitted_at) {
+        return NextResponse.json({ error: "ATTEMPT_ALREADY_SUBMITTED" }, { status: 409 });
+      }
+      if (
+        parsed.data.external_user_id &&
+        existing.external_user_id &&
+        parsed.data.external_user_id !== existing.external_user_id
+      ) {
+        return NextResponse.json({ error: "ATTEMPT_USER_MISMATCH" }, { status: 403 });
+      }
+
+      const { data: updated, error: updateError } = await db
+        .from("test_attempts")
+        .update({
+          external_user_id: existing.external_user_id ?? parsed.data.external_user_id ?? null,
+          submitted_at: submittedAt,
+          score: summary.score,
+          mastery: summary.mastery,
+          result: resultPayload,
+        })
+        .eq("id", existing.id)
+        .select("id,test_id,external_user_id,started_at,submitted_at,score,mastery,result")
+        .single();
+
+      if (updateError || !updated) {
+        throw new Error(updateError?.message ?? "Failed to submit attempt.");
+      }
+      attempt = updated;
+    } else {
+      const { data: created, error: createError } = await db
+        .from("test_attempts")
+        .insert({
+          test_id: testId,
+          external_user_id: parsed.data.external_user_id ?? null,
+          started_at: submittedAt,
+          submitted_at: submittedAt,
+          score: summary.score,
+          mastery: summary.mastery,
+          result: resultPayload,
+        })
+        .select("id,test_id,external_user_id,started_at,submitted_at,score,mastery,result")
+        .single();
+
+      if (createError || !created) {
+        throw new Error(createError?.message ?? "Failed to create attempt.");
+      }
+      attempt = created;
     }
 
     const answerRows = evaluations.map((evaluation) => ({
@@ -109,10 +155,10 @@ export async function POST(
 
     const { error: answersError } = await db
       .from("test_answers")
-      .insert(answerRows);
+      .upsert(answerRows, { onConflict: "attempt_id,question_id" });
 
     if (answersError) {
-      await db.from("test_attempts").delete().eq("id", attempt.id);
+      if (!parsed.data.attempt_id) await db.from("test_attempts").delete().eq("id", attempt.id);
       throw new Error(answersError.message);
     }
 
