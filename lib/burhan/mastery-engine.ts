@@ -67,6 +67,17 @@ function reviewDelayHours(mastery: number, consecutiveIncorrect: number) {
   return 1080;
 }
 
+function getSingleAyahTarget(question: Question, evaluation: QuestionEvaluation) {
+  const expected = question.expected_answer ?? {};
+  if (question.question_type !== "identify_surah") return [];
+  if (expected.surah_id == null || expected.ayah_number == null) return [];
+  return [{
+    surah_id: Number(expected.surah_id),
+    ayah_number: Number(expected.ayah_number),
+    score: evaluation.score,
+  }];
+}
+
 export async function updateMasteryForAttempt(input: {
   externalUserId?: string | null;
   attemptId: string;
@@ -79,7 +90,8 @@ export async function updateMasteryForAttempt(input: {
   const byAyah = new Map<string, AyahScore[]>();
 
   for (const item of input.evaluatedQuestions) {
-    for (const ayah of getExpectedAyahs(item.question, item.evaluation)) {
+    const targets = [...getExpectedAyahs(item.question, item.evaluation), ...getSingleAyahTarget(item.question, item.evaluation)];
+    for (const ayah of targets) {
       const key = \`\${ayah.surah_id}:\${ayah.ayah_number}\`;
       const list = byAyah.get(key) ?? [];
       list.push({
