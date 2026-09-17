@@ -25,10 +25,10 @@ function components(rows: AyahRow[], threshold: number) {
 function familyName(rows: AyahRow[]) { const lists=rows.map(r=>words(r.normalized_text)); const p:string[]=[]; for(let i=0;;i++){const t=lists[0]?.[i];if(!t||lists.some(x=>x[i]!==t))break;p.push(t);} return p.slice(0,5).join(" ")||"Similarity family"; }
 function difficulty(size:number,score:number){const sizeSignal=Math.min(3,Math.max(0,size-2));const sim=score>=.85?3:score>=.7?2:1;return Math.min(7,Math.max(1,sizeSignal+sim+1));}
 
-export async function buildSimilarityFamilies(input:{anchor:string;threshold?:number;limit?:number;persist?:boolean}){
+export async function buildSimilarityFamilies(input:{anchor:string;threshold?:number;limit?:number;persist?:boolean;juz?:number}){
   const db=getSupabaseAdmin(), normalizedAnchor=normalizeArabic(input.anchor); if(!normalizedAnchor) throw new Error("Anchor becomes empty after normalization.");
   const threshold=Math.max(.2,Math.min(input.threshold??DEFAULT_THRESHOLD,.95)), limit=Math.max(2,Math.min(input.limit??30,50));
-  const {data,error}=await db.rpc("burhan_find_anchor_ayahs",{p_anchor:normalizedAnchor,p_limit:limit}); if(error) throw new Error(error.message);
+  const {data,error}=await db.rpc("burhan_find_anchor_ayahs",{p_anchor:normalizedAnchor,p_limit:limit,p_juz:input.juz??null}); if(error) throw new Error(error.message);
   const rows=(data??[]) as AyahRow[], groups=components(rows,threshold);
   const families:SimilarityFamily[]=groups.map(group=>{
     const scores:number[]=[]; const members=group.map(row=>{let best=0,diff:string|null=null;for(const other of group){if(other.id===row.id)continue;const c=compare(row,other);scores.push(c.score);if(c.score>best){best=c.score;diff=c.differencePoint;}}return {...row,difference_point:diff,similarity_score:best};});
@@ -41,5 +41,5 @@ export async function buildSimilarityFamilies(input:{anchor:string;threshold?:nu
       for(const family of families){const {data:g,error:ge}=await db.from("similarity_groups").insert({name:family.name,description:family.description,difficulty:family.difficulty,anchor_id:anchor.id,occurrence_count:family.members.length,similarity_score:family.similarity_score,threshold}).select("id").single();if(ge)throw new Error(ge.message);const {error:me}=await db.from("similarity_group_members").insert(family.members.map(m=>({group_id:g.id,ayah_id:m.id,difference_point:m.difference_point,similarity_score:m.similarity_score})));if(me)throw new Error(me.message);}
     }
   }
-  return {anchor:input.anchor,normalized_anchor:normalizedAnchor,threshold,occurrences_found:rows.length,families};
+  return {anchor:input.anchor,normalized_anchor:normalizedAnchor,threshold,occurrences_found:rows.length,juz:input.juz??null,families};
 }
