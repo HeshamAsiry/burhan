@@ -21,16 +21,21 @@ const schema = z.object({
     .default("hafs_asim_baseline_v1"),
 });
 
+type AyahCoordinate = {
+  surah_id: number;
+  ayah_number: number;
+};
+
 function collectExpectedAyahRefs(
   value: unknown,
-  output = new Map<string, { surah_id: number; ayah_number: number }>(),
-): Array<{ surah_id: number; ayah_number: number }> {
+  output: Map<string, AyahCoordinate> = new Map<string, AyahCoordinate>(),
+): AyahCoordinate[] {
   if (Array.isArray(value)) {
     for (const item of value) collectExpectedAyahRefs(item, output);
-    return [...output.values()];
+    return Array.from(output.values());
   }
 
-  if (!value || typeof value !== "object") return [...output];
+  if (!value || typeof value !== "object") return Array.from(output.values());
 
   const object = value as Record<string, unknown>;
   if (
@@ -52,7 +57,7 @@ function collectExpectedAyahRefs(
     collectExpectedAyahRefs(nested, output);
   }
 
-  return [...output.values()];
+  return Array.from(output.values());
 }
 
 export async function POST(request: Request) {
@@ -224,7 +229,7 @@ export async function POST(request: Request) {
       (maddProfiles ?? []).map((item: any) => [item.rule_code, item]),
     );
 
-    const maddTargets = (maddOccurrences ?? []).map((occurrence: any) => {
+    const maddTargets: import("../../../../../lib/burhan/madd-acoustic-evaluator").MaddTarget[] = (maddOccurrences ?? []).map((occurrence: any) => {
       const profile = profileByRule.get(occurrence.rule.code);
       const expectedBehavior = occurrence.expected_behavior ?? {};
 
@@ -237,7 +242,9 @@ export async function POST(request: Request) {
         measurement_mode:
           profile?.measurement_mode ?? "route_profile",
         condition:
-          expectedBehavior.condition === "waqf" ? "waqf" : "always",
+          expectedBehavior.condition === "waqf"
+            ? ("waqf" as const)
+            : ("always" as const),
         requires_stop: expectedBehavior.condition === "waqf",
         notes: profile?.notes ?? null,
       };
@@ -389,7 +396,11 @@ export async function POST(request: Request) {
               .slice(0, 200)
               .map((operation) => ({
                 type: "phoneme_error",
-                ...operation,
+                operation_type: operation.type,
+                expected: operation.expected,
+                predicted: operation.predicted,
+                expected_index: operation.expected_index,
+                predicted_index: operation.predicted_index,
               })),
           ],
           updated_at: new Date().toISOString(),
