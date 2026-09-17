@@ -264,7 +264,7 @@ export function detectMaddOccurrences(
     if (i === units.length - 2) {
       const finalUnit = units.at(-1);
       if (finalUnit && !hasMark(finalUnit, SUKUN) && finalUnit.marks.some(
-        (mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ"
+        (mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === "ٍ" || mark === "ٌ"
       )) {
         occurrences.push(
           buildOccurrence(
