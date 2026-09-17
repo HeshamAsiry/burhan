@@ -8,6 +8,7 @@ const querySchema = z
     surah_id: z.coerce.number().int().min(1).max(114).optional(),
     ayah_number: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(25),
+    profile_code: z.string().trim().min(1).max(100).default("hafs_asim_baseline_v1"),
   })
   .refine(
     (value) =>
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     surah_id: url.searchParams.get("surah_id") ?? undefined,
     ayah_number: url.searchParams.get("ayah_number") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
+    profile_code: url.searchParams.get("profile_code") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -67,6 +69,39 @@ export async function GET(request: Request) {
 
     if (occurrenceError) throw new Error(occurrenceError.message);
 
+    const maddRuleCodes = [
+      ...new Set(
+        (occurrences ?? [])
+          .map((item: any) => item.rule?.code)
+          .filter(
+            (code: unknown): code is string =>
+              typeof code === "string" && code.startsWith("madd_"),
+          ),
+      ),
+    ];
+
+    const { data: maddProfiles, error: profileError } = maddRuleCodes.length
+      ? await db
+          .from("tajweed_madd_profiles")
+          .select("profile_code,profile_name_ar,qiraah,riwayah,tariq,rule_code,allowed_harakah,measurement_mode,notes")
+          .eq("profile_code", parsed.data.profile_code)
+          .in("rule_code", maddRuleCodes)
+      : { data: [], error: null };
+
+    if (profileError) throw new Error(profileError.message);
+
+    const profileByRule = new Map(
+      (maddProfiles ?? []).map((profile: any) => [profile.rule_code, profile]),
+    );
+
+    const enrichedOccurrences = (occurrences ?? []).map((occurrence: any) => ({
+      ...occurrence,
+      measurement_profile:
+        occurrence.rule?.code?.startsWith("madd_")
+          ? profileByRule.get(occurrence.rule.code) ?? null
+          : null,
+    }));
+
     return NextResponse.json({
       ayah: {
         id: ayah.id,
@@ -76,8 +111,9 @@ export async function GET(request: Request) {
         juz_number: ayah.juz_number,
         page_number: ayah.page_number,
       },
-      count: occurrences?.length ?? 0,
-      occurrences: occurrences ?? [],
+      count: enrichedOccurrences.length,
+      profile_code: parsed.data.profile_code,
+      occurrences: enrichedOccurrences,
       note:
         "This is the expected Tajweed knowledge map. It does not by itself judge the learner's audio pronunciation.",
     });
