@@ -15,6 +15,7 @@ The first knowledge-map detector covers:
 - Mushaddad noon/mim ghunnah.
 - Qalqalah locations where a sukun mark is explicitly present.
 - Lam shamsiyyah and lam qamariyyah.
+- Lafz al-Jalalah is mapped separately and remains an acoustic/planned rule.
 
 The stored occurrence is deliberately small and model-friendly:
 
