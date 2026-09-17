@@ -65,6 +65,19 @@ export async function POST(request: Request) {
       provider.issue_detected ??
       phonemeEvaluation.score < 95;
 
+    const finalVerdict =
+      provider.tajweed_score == null
+        ? (issueDetected ? "needs_teacher_review" : "not_assessed")
+        : decideTeacherReview({
+            confidence: provider.confidence,
+            issueDetected,
+            audioQuality: provider.audio_quality ?? "good",
+            unresolvedItems:
+              phonemeEvaluation.substitutions +
+              phonemeEvaluation.deletions +
+              phonemeEvaluation.insertions,
+          }).verdictStatus;
+
     const review = decideTeacherReview({
       confidence: provider.confidence,
       issueDetected,
@@ -118,13 +131,12 @@ export async function POST(request: Request) {
             phonemeEvaluation.deletions +
             phonemeEvaluation.insertions,
           conflicting_signals: 0,
-          verdict_status:
-            provider.tajweed_score == null && !issueDetected
-              ? "not_assessed"
-              : review.verdictStatus,
+          verdict_status: finalVerdict,
           review_reasons:
-            provider.tajweed_score == null && !issueDetected
-              ? ["tajweed_rule_detector_not_connected"]
+            provider.tajweed_score == null
+              ? issueDetected
+                ? ["pronunciation_issue_requires_teacher_review", "tajweed_rule_detector_not_connected"]
+                : ["tajweed_rule_detector_not_connected"]
               : review.reasons,
           summary: {
             ...(provider.summary ?? {}),
