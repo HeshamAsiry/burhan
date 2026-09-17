@@ -13,6 +13,31 @@ export type TestQuestionSpec =
   | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } };
 
+function publicQuestion(question: any) {
+  const base = {
+    id: question.id,
+    position: question.position,
+    question_type: question.question_type,
+    prompt: question.prompt,
+    difficulty: question.difficulty,
+  };
+
+  if (question.question_type === "mcq") {
+    return {
+      ...base,
+      options: Array.isArray(question.expected_answer?.options)
+        ? question.expected_answer.options.map((option: any) => ({
+            id: option.id,
+            surah_id: option.surah_id,
+            surah_name_ar: option.surah_name_ar,
+          }))
+        : [],
+    };
+  }
+
+  return base;
+}
+
 export async function generateTest(input: {
   juz: number;
   level: number;
@@ -20,6 +45,7 @@ export async function generateTest(input: {
   questions?: TestQuestionSpec[];
   questionCount?: number;
   progression?: "from_30_to_1" | "from_1_to_30";
+  includeAnswers?: boolean;
   persist?: boolean;
 }) {
   const blueprint = input.questions?.length
@@ -79,7 +105,7 @@ export async function generateTest(input: {
       test_type: input.testType ?? "custom",
       juz: input.juz,
       blueprint,
-      questions: generated,
+      questions: input.includeAnswers ? generated : generated.map((question) => publicQuestion(question)),
     };
   }
 
@@ -152,6 +178,6 @@ export async function generateTest(input: {
     juz: test.juz_number,
     blueprint_id: blueprintId,
     blueprint,
-    questions: inserted ?? [],
+    questions: input.includeAnswers ? inserted ?? [] : (inserted ?? []).map((question) => publicQuestion(question)),
   };
 }
