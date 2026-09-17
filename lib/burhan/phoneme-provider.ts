@@ -1,3 +1,5 @@
+import { validateAudioUrl } from "./audio-url";
+
 export type PhonemeProviderResult = {
   provider: string;
   model: string;
@@ -30,6 +32,7 @@ export async function runPhonemeProvider(input: {
   questionId: string;
 }): Promise<PhonemeProviderResult> {
   const url = providerUrl();
+  validateAudioUrl(input.audioUrl);
   const token = process.env.BURHAN_TAJWEED_PHONEME_PROVIDER_TOKEN;
 
   const response = await fetch(url, {
