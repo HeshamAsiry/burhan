@@ -43,6 +43,10 @@ It matches supplied occurrences to expected occurrences one-to-one, choosing the
 
 When the question requires the surah, a supplied \`surah_id\` is also checked.
 
+## Identify surah
+
+For `identify_surah`, Burhan accepts either the expected `surah_id` or the Arabic surah name. A correct identification scores 100; an incorrect identification scores 0.
+
 ## Submission
 
 \`POST /api/v1/tests/:testId/submit\`
