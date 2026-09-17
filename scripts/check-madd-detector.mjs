@@ -1,67 +1,58 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import ts from "typescript";
+
+const source = await fs.readFile(
+  new URL("../lib/burhan/madd-detector.ts", import.meta.url),
+  "utf8",
+);
+
+const compiled = ts.transpileModule(source, {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ESNext,
+  },
+}).outputText;
+
+const moduleUrl =
+  "data:text/javascript;base64," +
+  Buffer.from(compiled, "utf8").toString("base64");
+
+const detector = await import(moduleUrl);
 
 const samples = [
-  {
-    name: "natural",
-    word: "قَالَ",
-    next: "",
-    expected: "madd_asli",
-  },
-  {
-    name: "badal",
-    word: "ءَامَنَّا",
-    next: "",
-    expected: "madd_badl",
-  },
-  {
-    name: "muttasil",
-    word: "شَاءَ",
-    next: "",
-    expected: "madd_muttasil",
-  },
-  {
-    name: "munfasil",
-    word: "بِمَا",
-    next: "أُنزِلَ",
-    expected: "madd_munfasil",
-  },
-  {
-    name: "lazim muthaqqal",
-    word: "الضَّالِّينَ",
-    next: "",
-    expected: "madd_lazim_kalimi_muthaqqal",
-  },
-  {
-    name: "leen",
-    word: "خَوْفْ",
-    next: "",
-    expected: "madd_leen",
-  },
-  {
-    name: "iwad",
-    word: "عَلِيمًا",
-    next: "",
-    expected: "madd_iwad",
-  },
+  ["natural", "قَالَ", "", "madd_asli"],
+  ["badal", "ءَامَنَّا", "", "madd_badl"],
+  ["badal-alif-maddah", "آمَنُوا", "", "madd_badl"],
+  ["muttasil", "شَاءَ", "", "madd_muttasil"],
+  ["munfasil", "بِمَآ", "أُنزِلَ", "madd_munfasil"],
+  ["lazim-muthaqqal", "الضَّالِّينَ", "", "madd_lazim_kalimi_muthaqqal"],
+  ["leen", "خَوْفٌ", "", "madd_leen"],
+  ["iwad", "عَلِيمًا", "", "madd_iwad"],
 ];
 
-const MARKS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/u;
-const units = (word) => {
-  const chars = [...word];
-  const result = [];
-  for (const char of chars) {
-    if (MARKS.test(char) || char === "ـ") {
-      result.at(-1)?.marks.push(char);
-    } else {
-      result.push({ base: char, marks: [] });
-    }
-  }
-  return result;
-};
-
-for (const sample of samples) {
-  const parsed = units(sample.word);
-  assert.ok(parsed.length > 0, sample.name);
+for (const [name, word, nextWord, expectedRule] of samples) {
+  const matches = detector.detectMaddOccurrences(word, 0, nextWord);
+  assert.ok(
+    matches.some((item) => item.ruleCode === expectedRule),
+    name + ": expected " + expectedRule,
+  );
 }
 
-console.log("madd detector smoke samples parsed:", samples.length);
+const arid = detector.detectMaddOccurrences("عَلِيمٌ", 0, "");
+assert.ok(
+  arid.some((item) => item.ruleCode === "madd_arid_lissukun"),
+  "arid li-sukun",
+);
+
+const iwad = detector.detectMaddOccurrences("عَلِيمًا", 0, "");
+assert.ok(
+  iwad.some((item) => item.ruleCode === "madd_iwad"),
+  "iwad",
+);
+assert.ok(
+  !iwad.some((item) => item.ruleCode === "madd_arid_lissukun"),
+  "fathatan must not become arid li-sukun",
+);
+
+console.log("madd detector checks passed:", samples.length + 2);
