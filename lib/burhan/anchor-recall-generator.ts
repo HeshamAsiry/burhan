@@ -68,7 +68,7 @@ export async function generateAnchorRecallQuestion(input: {
   if (error) throw new Error(error.message);
 
   const matches = (data ?? []) as Match[];
-  if (!matches.length) throw new Error(\`No occurrence found for anchor "\${anchor}".\`);
+  if (!matches.length) throw new Error(`No occurrence found for anchor "${anchor}".`);
 
   const selected = occurrencesRequired === "all"
     ? matches
@@ -84,7 +84,7 @@ export async function generateAnchorRecallQuestion(input: {
   if (ayahError) throw new Error(ayahError.message);
 
   const byKey = new Map((ayahs ?? []).map((a) => [
-    \`\${a.surah_id}:\${a.ayah_number}\`,
+    `${a.surah_id}:${a.ayah_number}`,
     a as { surah_id: number; ayah_number: number; text_ar: string },
   ]));
 
@@ -103,7 +103,7 @@ export async function generateAnchorRecallQuestion(input: {
     surah_name: includeSurah ? (surahNames.get(match.surah_id) ?? null) : null,
     ayah_number: match.ayah_number,
     ayahs: Array.from({ length: ayahsAfter + 1 }, (_, offset) =>
-      byKey.get(\`\${match.surah_id}:\${match.ayah_number + offset}\`)
+      byKey.get(`${match.surah_id}:${match.ayah_number + offset}`)
     ).filter(Boolean).map((a) => ({
       ayah_number: a!.ayah_number,
       text_ar: a!.text_ar,
@@ -119,10 +119,10 @@ export async function generateAnchorRecallQuestion(input: {
 
   const followLabel = ayahsAfter === 0
     ? "الآية"
-    : \`الآية وبعدها \${ayahsAfter === 1 ? "آية واحدة" : \`\${ayahsAfter} آيات\`}\`;
-  const occurrenceLabel = occurrencesRequired === "all" ? "جميع المواضع" : \`\${selected.length} مواضع\`;
+    : `الآية وبعدها ${ayahsAfter === 1 ? "آية واحدة" : `${ayahsAfter} آيات`}`;
+  const occurrenceLabel = occurrencesRequired === "all" ? "جميع المواضع" : `${selected.length} مواضع`;
   const surahLabel = includeSurah ? "، مع ذكر اسم السورة" : "";
-  const prompt = \`اذكر \${followLabel} لكل من \${occurrenceLabel} التي ورد فيها: «\${anchor}»\${surahLabel}\`;
+  const prompt = `اذكر ${followLabel} لكل من ${occurrenceLabel} التي ورد فيها: «${anchor}»${surahLabel}`;
 
   return {
     question_type: "anchor_recall",
