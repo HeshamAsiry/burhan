@@ -21,7 +21,7 @@ const moduleUrl =
 const detector = await import(moduleUrl);
 
 const samples = [
-  ["natural", "قَالَ", "", "madd_asli"],
+  ["natural", "قَالَ", "مِنْ", "madd_asli"],
   ["badal", "ءَامَنَّا", "", "madd_badl"],
   ["badal-alif-maddah", "آمَنُوا", "", "madd_badl"],
   ["muttasil", "شَاءَ", "", "madd_muttasil"],
