@@ -226,7 +226,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
     }
 
     if (
-      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ") &&
+      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === "ٍ" || mark === "ٌ") &&
       penultimate?.base === "ي" &&
       hasMark(penultimate, SUKUN) &&
       hasMark(beforePenultimate, FATHA)
