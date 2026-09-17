@@ -25,7 +25,7 @@ const LEVELS = {
 
 async function getRangeCandidates(juz: number, cumulative: boolean) {
   const db = getSupabaseAdmin();
-  const { data, error } = await db.from("ayahs").select("surah_id,ayah_number").eq(cumulative ? "juz_number" : "juz_number", juz).order("surah_id").order("ayah_number");
+  const query = db.from("ayahs").select("surah_id,ayah_number").order("surah_id").order("ayah_number");\n  const { data, error } = cumulative ? await query.lte("juz_number", juz) : await query.eq("juz_number", juz);
   if (error) throw new Error(error.message);
   return (data ?? []) as Array<{ surah_id: number; ayah_number: number }>;
 }
