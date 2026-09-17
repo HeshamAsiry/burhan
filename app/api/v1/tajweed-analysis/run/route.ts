@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../../../../../lib/supabase-admin";
 import { comparePhonemes } from "../../../../../lib/burhan/phoneme-evaluator";
+import {
+  evaluateMaddObservations,
+  summarizeMaddMeasurements,
+} from "../../../../../lib/burhan/madd-acoustic-evaluator";
 import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
 
@@ -9,6 +13,12 @@ const schema = z.object({
   attempt_id: z.string().uuid(),
   question_id: z.string().uuid(),
   audio_url: z.string().url(),
+  profile_code: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .default("hafs_asim_baseline_v1"),
 });
 
 function collectExpectedAyahRefs(
@@ -67,7 +77,7 @@ export async function POST(request: Request) {
           .maybeSingle(),
         db
           .from("test_questions")
-          .select("id,test_id,question_type")
+          .select("id,test_id,question_type,expected_answer")
           .eq("id", parsed.data.question_id)
           .maybeSingle(),
       ]);
@@ -161,10 +171,70 @@ export async function POST(request: Request) {
       ),
     ].join(",");
 
+    const { data: maddOccurrences, error: maddError } = await db
+      .from("tajweed_occurrences")
+      .select(
+        "id,ayah_id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,rule:tajweed_rules!inner(code,name_ar,name_en,category)",
+      )
+      .in(
+        "ayah_id",
+        orderedAyahs.map((ayah) => ayah.id),
+      )
+      .like("rule.code", "madd_%")
+      .order("ayah_id", { ascending: true })
+      .order("word_index", { ascending: true })
+      .order("char_start", { ascending: true });
+
+    if (maddError) throw new Error(maddError.message);
+
+    const maddRuleCodes = [
+      ...new Set(
+        (maddOccurrences ?? [])
+          .map((item: any) => item.rule?.code)
+          .filter((code: unknown): code is string => typeof code === "string"),
+      ),
+    ];
+
+    const { data: maddProfiles, error: maddProfileError } = maddRuleCodes.length
+      ? await db
+          .from("tajweed_madd_profiles")
+          .select(
+            "profile_code,profile_name_ar,qiraah,riwayah,tariq,rule_code,allowed_harakah,measurement_mode,notes",
+          )
+          .eq("profile_code", profileCode)
+          .in("rule_code", maddRuleCodes)
+      : { data: [], error: null };
+
+    if (maddProfileError) throw new Error(maddProfileError.message);
+
+    const profileByRule = new Map(
+      (maddProfiles ?? []).map((item: any) => [item.rule_code, item]),
+    );
+
+    const maddTargets = (maddOccurrences ?? []).map((occurrence: any) => {
+      const profile = profileByRule.get(occurrence.rule.code);
+      const expectedBehavior = occurrence.expected_behavior ?? {};
+
+      return {
+        occurrence_id: occurrence.id,
+        rule_code: occurrence.rule.code,
+        expected_harakah: Array.isArray(profile?.allowed_harakah)
+          ? profile.allowed_harakah.map((value: unknown) => Number(value)).filter(Number.isFinite)
+          : [],
+        measurement_mode:
+          profile?.measurement_mode ?? "route_profile",
+        condition:
+          expectedBehavior.condition === "waqf" ? "waqf" : "always",
+        requires_stop: expectedBehavior.condition === "waqf",
+        notes: profile?.notes ?? null,
+      };
+    });
+
     const provider = await runPhonemeProvider({
       audioUrl: parsed.data.audio_url,
       referencePhonemes,
       questionId: question.id,
+      maddTargets,
     });
 
     const phonemeEvaluation = comparePhonemes(
@@ -172,14 +242,35 @@ export async function POST(request: Request) {
       provider.predicted_phonemes,
     );
 
+    const maddMeasurements = evaluateMaddObservations(
+      maddTargets,
+      provider.madd_observations ?? [],
+    );
+    const maddSummary = summarizeMaddMeasurements(maddMeasurements);
+    const measuredMadd = maddMeasurements.filter(
+      (item) => item.observed_duration_ms != null,
+    );
+    const missingExpectedMadd =
+      maddTargets.length > 0 &&
+      (provider.madd_observations?.length ?? 0) < maddTargets.length;
+
     const issueDetected =
       provider.issue_detected ??
-      phonemeEvaluation.score < 95;
+      phonemeEvaluation.score < 95 ||
+      maddSummary.detected_issues > 0;
+
+    const maddForcesReview =
+      maddSummary.needs_teacher_review > 0 ||
+      (missingExpectedMadd && measuredMadd.length > 0);
 
     const finalVerdict =
-      provider.tajweed_score == null
+      maddTargets.length === 0 && provider.tajweed_score == null
         ? (issueDetected ? "needs_teacher_review" : "not_assessed")
-        : decideTeacherReview({
+        : provider.tajweed_score == null && maddSummary.detected_issues === 0
+          ? (maddForcesReview ? "needs_teacher_review" : "not_assessed")
+          : maddForcesReview
+            ? "needs_teacher_review"
+            : decideTeacherReview({
             confidence: provider.confidence,
             issueDetected,
             audioQuality: provider.audio_quality ?? "good",
@@ -196,7 +287,9 @@ export async function POST(request: Request) {
       unresolvedItems:
         phonemeEvaluation.substitutions +
         phonemeEvaluation.deletions +
-        phonemeEvaluation.insertions,
+        phonemeEvaluation.insertions +
+        maddSummary.needs_teacher_review +
+        maddSummary.not_assessed,
     });
 
     const { data: audioAnswer, error: audioError } = await db
@@ -240,7 +333,9 @@ export async function POST(request: Request) {
           unresolved_items:
             phonemeEvaluation.substitutions +
             phonemeEvaluation.deletions +
-            phonemeEvaluation.insertions,
+            phonemeEvaluation.insertions +
+            maddSummary.needs_teacher_review +
+            maddSummary.not_assessed,
           conflicting_signals: 0,
           verdict_status: finalVerdict,
           review_reasons:
@@ -252,6 +347,7 @@ export async function POST(request: Request) {
           summary: {
             ...(provider.summary ?? {}),
             phoneme_reference_version: referenceVersion,
+            madd: maddSummary,
             pronunciation: {
               score: phonemeEvaluation.score,
               distance: phonemeEvaluation.distance,
@@ -263,6 +359,18 @@ export async function POST(request: Request) {
           },
           evidence: [
             ...(provider.evidence ?? []),
+            ...maddMeasurements
+              .filter((item) => item.status !== "verified")
+              .map((item) => ({
+                type: "madd_measurement",
+                occurrence_id: item.occurrence_id,
+                rule_code: item.rule_code,
+                status: item.status,
+                estimated_harakah: item.estimated_harakah,
+                expected_harakah: item.expected_harakah,
+                deviation_percent: item.deviation_percent,
+                reasons: item.reasons,
+              })),
             ...phonemeEvaluation.operations
               .filter((operation) => operation.type !== "match")
               .slice(0, 200)
@@ -284,9 +392,54 @@ export async function POST(request: Request) {
       throw new Error(analysisError?.message ?? "Failed to store Tajweed phoneme analysis.");
     }
 
+    const measurementRows = maddMeasurements.map((measurement) => {
+      const observation = (provider.madd_observations ?? []).find(
+        (item) => item.occurrence_id === measurement.occurrence_id,
+      );
+      const target = maddTargets.find(
+        (item) => item.occurrence_id === measurement.occurrence_id,
+      );
+
+      return {
+        analysis_id: analysis.id,
+        occurrence_id: measurement.occurrence_id,
+        profile_code: profileCode,
+        rule_code: measurement.rule_code,
+        observed_duration_ms: measurement.observed_duration_ms,
+        reference_harakah_ms: measurement.reference_harakah_ms,
+        estimated_harakah: measurement.estimated_harakah,
+        expected_harakah: measurement.expected_harakah,
+        deviation_percent: measurement.deviation_percent,
+        measurement_confidence: measurement.measurement_confidence,
+        stop_detected: measurement.stop_detected,
+        status: measurement.status,
+        reasons: measurement.reasons,
+        evidence: {
+          ...measurement.evidence,
+          provider_start_ms: observation?.start_ms ?? null,
+          provider_end_ms: observation?.end_ms ?? null,
+          measurement_mode: target?.measurement_mode ?? null,
+        },
+      };
+    });
+
+    if (measurementRows.length) {
+      const { error: measurementsError } = await db
+        .from("burhan_madd_measurements")
+        .upsert(measurementRows, { onConflict: "analysis_id,occurrence_id" });
+
+      if (measurementsError) {
+        throw new Error(measurementsError.message);
+      }
+    }
+
     return NextResponse.json({
       analysis,
       phonemes: phonemeEvaluation,
+      madd: {
+        summary: maddSummary,
+        measurements: maddMeasurements,
+      },
       provider: {
         name: provider.provider,
         model: provider.model,
