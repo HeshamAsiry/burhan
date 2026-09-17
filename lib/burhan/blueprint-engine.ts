@@ -20,7 +20,7 @@ const LEVELS = {
   4: { mutashabihatRatio: 0.6, rangeAyahs: 4, occurrences: 2 },
   5: { mutashabihatRatio: 0.7, rangeAyahs: 5, occurrences: 2 },
   6: { mutashabihatRatio: 0.8, rangeAyahs: 5, occurrences: 3 },
-  7: { mutashabihatRatio: 0.9, rangeAyahs: 6, occurrences: "all" as const },
+  7: { mutashabihatRatio: 0.9, rangeAyahs: 6, occurrences: 3 },
 } as const;
 
 async function getRangeCandidates(juz: number) {
