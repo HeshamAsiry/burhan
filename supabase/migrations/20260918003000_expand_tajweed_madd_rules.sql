@@ -6,6 +6,9 @@ alter table public.tajweed_occurrences
   drop constraint if exists tajweed_occurrences_ayah_rule_word_trigger_key;
 
 alter table public.tajweed_occurrences
+  drop constraint if exists tajweed_occurrences_location_key;
+
+alter table public.tajweed_occurrences
   add constraint tajweed_occurrences_location_key
   unique (ayah_id, rule_id, char_start, char_end, word_index, word_index_end, trigger_text);
 
