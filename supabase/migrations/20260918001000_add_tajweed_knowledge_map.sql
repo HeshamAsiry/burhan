@@ -24,7 +24,7 @@ create table if not exists public.tajweed_occurrences (
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (ayah_id, rule_id, word_index, word_index_end)
+  unique (ayah_id, rule_id, word_index, word_index_end, trigger_text)
 );
 
 create index if not exists idx_tajweed_occurrences_ayah
