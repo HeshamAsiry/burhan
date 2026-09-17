@@ -189,6 +189,23 @@ export async function POST(
       masteryResult = { error: masteryError instanceof Error ? masteryError.message : "Mastery update failed." };
     }
 
+    const { data: tajweedAnalyses, error: tajweedError } = await db
+      .from("burhan_tajweed_analyses")
+      .select("id,question_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence")
+      .eq("attempt_id", attempt.id);
+
+    if (tajweedError) throw new Error(tajweedError.message);
+
+    const tajweedSummary = {
+      analyzed: tajweedAnalyses?.length ?? 0,
+      needs_teacher_review:
+        tajweedAnalyses?.filter((item) => item.verdict_status === "needs_teacher_review").length ?? 0,
+      detected_issues:
+        tajweedAnalyses?.filter((item) => item.verdict_status === "detected_issue").length ?? 0,
+      verified:
+        tajweedAnalyses?.filter((item) => item.verdict_status === "verified").length ?? 0,
+    };
+
     return NextResponse.json({
       attempt_id: attempt.id,
       mastery: masteryResult,
@@ -199,6 +216,10 @@ export async function POST(
         juz: test.juz_number,
       },
       summary,
+      tajweed: {
+        summary: tajweedSummary,
+        analyses: tajweedAnalyses ?? [],
+      },
       questions: evaluations,
     });
   } catch (error) {
