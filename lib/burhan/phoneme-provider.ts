@@ -89,7 +89,7 @@ export async function runPhonemeProvider(input: {
         .filter((item: unknown): item is Record<string, unknown> =>
           Boolean(item) && typeof item === "object",
         )
-        .map((item) => ({
+        .map((item: Record<string, unknown>) => ({
           occurrence_id: String(item.occurrence_id ?? ""),
           duration_ms: Number(item.duration_ms),
           reference_harakah_ms:
@@ -111,7 +111,7 @@ export async function runPhonemeProvider(input: {
               : undefined,
         }))
         .filter(
-          (item) =>
+          (item: MaddObservation) =>
             item.occurrence_id &&
             Number.isFinite(item.duration_ms) &&
             Number.isFinite(item.confidence) &&
