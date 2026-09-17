@@ -17,6 +17,20 @@ type AyahRow = {
   juz_number: number;
 };
 
+function findOccurrences(text: string, anchor: string) {
+  const results: Array<{ start: number; end: number }> = [];
+  let from = 0;
+
+  while (from < text.length) {
+    const index = text.indexOf(anchor, from);
+    if (index === -1) break;
+    results.push({ start: index, end: index + anchor.length });
+    from = index + Math.max(anchor.length, 1);
+  }
+
+  return results;
+}
+
 export async function findAnchorRecall(input: AnchorRecallInput) {
   const db = getSupabaseAdmin();
   const normalizedAnchor = normalizeArabic(input.anchor);
@@ -25,51 +39,54 @@ export async function findAnchorRecall(input: AnchorRecallInput) {
     throw new Error("Anchor becomes empty after normalization.");
   }
 
-  const { data: ayahs, error } = await db
+  // Search only candidate ayahs instead of loading the entire Quran.
+  // The substring search is intentional: anchors such as "اقترب" should
+  // also match forms like "واقْتَرَبَ" after normalization.
+  const { data: candidates, error: candidateError } = await db
     .from("ayahs")
     .select("id,surah_id,ayah_number,text_ar,normalized_text,juz_number")
+    .ilike("normalized_text", `%${normalizedAnchor}%`)
     .order("surah_id", { ascending: true })
     .order("ayah_number", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (candidateError) throw new Error(candidateError.message);
 
-  const filteredAyahs = ((ayahs ?? []) as AyahRow[]).filter(
+  const candidateAyahs = ((candidates ?? []) as AyahRow[]).filter(
     (ayah) => !input.juz || ayah.juz_number === input.juz,
   );
 
-  const matches = filteredAyahs.flatMap((ayah) => {
-    const text = ayah.normalized_text ?? "";
-    const found: Array<{
-      ayah: AyahRow;
-      normalizedStart: number;
-      normalizedEnd: number;
-    }> = [];
-
-    let from = 0;
-    while (from < text.length) {
-      const index = text.indexOf(normalizedAnchor, from);
-      if (index === -1) break;
-
-      found.push({
-        ayah,
-        normalizedStart: index,
-        normalizedEnd: index + normalizedAnchor.length,
-      });
-
-      from = index + Math.max(normalizedAnchor.length, 1);
-    }
-
-    return found;
-  });
+  const matches = candidateAyahs.flatMap((ayah) =>
+    findOccurrences(ayah.normalized_text ?? "", normalizedAnchor).map((position) => ({
+      ayah,
+      normalizedStart: position.start,
+      normalizedEnd: position.end,
+    })),
+  );
 
   const selected =
     input.occurrencesRequired === "all"
       ? matches
       : matches.slice(0, input.occurrencesRequired);
 
-  const ayahByKey = new Map(
-    filteredAyahs.map((ayah) => [`${ayah.surah_id}:${ayah.ayah_number}`, ayah]),
-  );
+  // Fetch the surrounding ayahs separately so a requested passage can cross
+  // a juz boundary without being truncated by the optional juz filter.
+  const surahIds = [...new Set(selected.map((match) => match.ayah.surah_id))];
+  const ayahByKey = new Map<string, AyahRow>();
+
+  if (surahIds.length > 0) {
+    const { data: surroundingAyahs, error: surroundingError } = await db
+      .from("ayahs")
+      .select("id,surah_id,ayah_number,text_ar,normalized_text,juz_number")
+      .in("surah_id", surahIds)
+      .order("surah_id", { ascending: true })
+      .order("ayah_number", { ascending: true });
+
+    if (surroundingError) throw new Error(surroundingError.message);
+
+    for (const ayah of (surroundingAyahs ?? []) as AyahRow[]) {
+      ayahByKey.set(`${ayah.surah_id}:${ayah.ayah_number}`, ayah);
+    }
+  }
 
   const occurrenceResults = selected.map((match) => {
     const following = Array.from({ length: input.ayahsAfter + 1 }, (_, offset) =>
