@@ -63,33 +63,6 @@ function nextBaseLetterInWord(value: string, letterIndex: number) {
   return null;
 }
 
-function firstLetterAfterNoonSukun(value: string) {
-  const chars = [...value];
-
-  for (let i = 0; i < chars.length; i++) {
-    if (chars[i] !== "ن") continue;
-
-    let hasSukun = false;
-    let nextIndex = i + 1;
-
-    for (; nextIndex < chars.length && ARABIC_MARKS.test(chars[nextIndex]); nextIndex++) {
-      if (chars[nextIndex] === "ْ") hasSukun = true;
-    }
-
-    if (hasSukun) {
-      return nextBaseLetterInWord(value, i);
-    }
-  }
-
-  return null;
-}
-
-function firstBaseLetterAfterArticle(value: string) {
-  const letters = baseLetters(value);
-  if (letters.length < 3 || letters[0] !== "ا" || letters[1] !== "ل") return null;
-  return letters[2] ?? null;
-}
-
 function classifyNoonOrTanween(following: string) {
   if (IZHAR_LETTERS.has(following)) return "noon_izhar";
   if (IDGHAM_WITH_GHUNNAH_LETTERS.has(following)) return "noon_idgham_ghunnah";
@@ -183,21 +156,7 @@ export function extractDeterministicTajweedOccurrences(
       }
     }
 
-    const internalNoonFollowing = firstLetterAfterNoonSukun(word);
-    if (internalNoonFollowing) {
-      const ruleCode = classifyNoonOrTanween(internalNoonFollowing);
-      if (ruleCode) {
-        addOccurrence(
-          occurrences,
-          ruleCode,
-          index,
-          index,
-          "نْ",
-          word,
-          { source: "noon_sakinah", following_letter: internalNoonFollowing },
-        );
-      }
-    } else if (lastLetter === "ن" && hasSukunAfter(word, "ن") && nextLetter) {
+    if (lastLetter === "ن" && hasSukunAfter(word, "ن") && nextLetter) {
       const ruleCode = classifyNoonOrTanween(nextLetter);
       if (ruleCode) {
         addOccurrence(
