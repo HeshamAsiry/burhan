@@ -69,6 +69,7 @@ export async function generateMutashabihatQuestion(input: {
   ayahsAfter?: number;
   threshold?: number;
   limit?: number;
+  juz?: number;
 }): Promise<GeneratedQuestion> {
   const anchor = input.anchor.trim();
   const normalized = normalizeArabic(anchor);
