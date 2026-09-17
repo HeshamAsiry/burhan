@@ -31,3 +31,9 @@ The stored occurrence is deliberately small and model-friendly:
 Madd timing, detailed Raa tafkhim/tarqiq, Waqf/Ibtida, and finer Sifat/Makhraj judgments require additional contextual and acoustic analysis. They are not marked as automatically verified by this deterministic text layer.
 
 The canonical Quran text remains unchanged. The knowledge map is derived metadata only.
+
+## Building the occurrence map
+
+Run `npm run map:tajweed` from a trusted server environment with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. The builder reads all 6,236 ayahs, detects the deterministic v1 rule occurrences, and upserts the derived rows into `tajweed_occurrences`.
+
+The builder is intentionally server-side because it needs a service-role key to write the protected knowledge map.
