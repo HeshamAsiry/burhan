@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     const { data: occurrences, error: occurrenceError } = await db
       .from("tajweed_occurrences")
       .select(
-        "id,word_index,word_index_end,trigger_text,context_text,expected_behavior,source_version,rule:tajweed_rules(id,code,name_ar,name_en,category,detection_mode)",
+        "id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,source_version,rule:tajweed_rules(id,code,name_ar,name_en,category,detection_mode)",
       )
       .eq("ayah_id", ayah.id)
       .order("word_index", { ascending: true })
