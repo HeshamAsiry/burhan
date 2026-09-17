@@ -170,7 +170,7 @@ function detectMadd(
       continue;
     }
 
-    if (i === units.length - 2) {
+    if (!nextWord && i === units.length - 2) {
       const finalUnit = units.at(-1);
       if (
         finalUnit &&
@@ -195,7 +195,7 @@ function detectMadd(
 
   const finalUnit = units.at(-1);
 
-  if (finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
+  if (!nextWord && finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
     out.push({
       ayah_id: null,
       word_index: wordIndex,
@@ -214,7 +214,7 @@ function detectMadd(
     });
   }
 
-  if (units.length >= 3 && finalUnit) {
+  if (!nextWord && units.length >= 3 && finalUnit) {
     const penultimate = units.at(-2);
     const beforePenultimate = units.at(-3);
 
