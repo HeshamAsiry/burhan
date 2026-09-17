@@ -29,12 +29,39 @@ export async function GET(
     const { data: attempts, error: attemptError } = await query;
     if (attemptError) throw new Error(attemptError.message);
 
-    const enriched = (attempts ?? []).map((attempt: any) => ({
-      ...attempt,
-      duration_seconds: attempt.started_at && attempt.submitted_at
-        ? Math.max(0, Math.round((new Date(attempt.submitted_at).getTime() - new Date(attempt.started_at).getTime()) / 1000))
-        : null,
-    }));
+    const attemptIds = (attempts ?? []).map((attempt: any) => attempt.id);
+    const { data: tajweedAnalyses, error: tajweedError } = attemptIds.length
+      ? await db
+          .from("burhan_tajweed_analyses")
+          .select("id,attempt_id,question_id,audio_answer_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence")
+          .in("attempt_id", attemptIds)
+      : { data: [], error: null };
+
+    if (tajweedError) throw new Error(tajweedError.message);
+
+    const analysesByAttempt = new Map<string, any[]>();
+    for (const analysis of tajweedAnalyses ?? []) {
+      const list = analysesByAttempt.get(analysis.attempt_id) ?? [];
+      list.push(analysis);
+      analysesByAttempt.set(analysis.attempt_id, list);
+    }
+
+    const enriched = (attempts ?? []).map((attempt: any) => {
+      const analyses = analysesByAttempt.get(attempt.id) ?? [];
+      return {
+        ...attempt,
+        duration_seconds: attempt.started_at && attempt.submitted_at
+          ? Math.max(0, Math.round((new Date(attempt.submitted_at).getTime() - new Date(attempt.started_at).getTime()) / 1000))
+          : null,
+        tajweed: {
+          analyzed: analyses.length,
+          needs_teacher_review: analyses.filter((item) => item.verdict_status === "needs_teacher_review").length,
+          detected_issues: analyses.filter((item) => item.verdict_status === "detected_issue").length,
+          verified: analyses.filter((item) => item.verdict_status === "verified").length,
+          analyses,
+        },
+      };
+    });
 
     return NextResponse.json({
       test_id: parsed.data,
