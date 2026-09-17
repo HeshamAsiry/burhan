@@ -29,3 +29,7 @@ create index if not exists idx_burhan_madd_measurements_occurrence
   on public.burhan_madd_measurements (occurrence_id);
 
 alter table public.burhan_madd_measurements enable row level security;
+
+
+create index if not exists idx_burhan_madd_measurements_rule_code
+  on public.burhan_madd_measurements (rule_code);
