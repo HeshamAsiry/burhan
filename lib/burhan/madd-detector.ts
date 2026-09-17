@@ -276,11 +276,13 @@ export function detectMaddOccurrences(
             "madd_arid_lissukun",
             {
               condition: "waqf",
+              base_rule_at_wasl: "madd_asli",
               allowed_duration: "route_profile",
               requires_acoustic_validation: true,
             },
           ),
         );
+        continue;
       }
     }
 
