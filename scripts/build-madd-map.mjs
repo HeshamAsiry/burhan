@@ -111,6 +111,14 @@ function detectMadd(word, wordIndex, nextWord = "") {
 
     if (!isMaddLetter(unit, previous)) continue;
 
+    if (previous && HAMZA_BASES.has(previous.base)) {
+      add(out, word, nextWord, wordIndex, unit, undefined, "madd_badl", {
+        cause: "preceding_hamza",
+        reference_duration: "route_profile",
+      });
+      continue;
+    }
+
     if (following && isHamza(following)) {
       add(out, word, nextWord, wordIndex, unit, following, "madd_muttasil", {
         cause: "hamza_same_word",
@@ -194,7 +202,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
     const beforePenultimate = units.at(-3);
 
     if (
-      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ") &&
+      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === "ٍ" || mark === "ٌ") &&
       penultimate?.base === "و" &&
       hasMark(penultimate, SUKUN) &&
       hasMark(beforePenultimate, FATHA)
