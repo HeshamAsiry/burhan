@@ -154,7 +154,7 @@ function extract(ayahText) {
           following_letter: internalNoonFollowing,
         });
       }
-    } else if (lastLetter === "ن" && hasSukunAfter(word, "ن") && nextLetter) {
+    } else if (lastLetter === "ن" && nextLetter) {
       const ruleCode = classifyNoon(nextLetter);
       if (ruleCode) {
         add(out, ruleCode, index, index + 1, word, nextWord, {
@@ -175,7 +175,7 @@ function extract(ayahText) {
       }
     }
 
-    if (lastLetter === "م" && hasSukunAfter(word, "م") && nextLetter) {
+    if (lastLetter === "م" && nextLetter) {
       const ruleCode =
         nextLetter === "م"
           ? "meem_idgham_shafawi"
