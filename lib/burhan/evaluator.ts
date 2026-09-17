@@ -33,7 +33,6 @@ export type QuestionEvaluation = {
     surah_correct?: boolean;
     ayah_scores?: Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }>;
     details?: Array<Record<string, unknown>>;
-    ayah_scores?: Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }>;
   };
 };
 
@@ -273,7 +272,9 @@ export function evaluateQuestion(question: {
             text_ar: String(ayah.text_ar),
           }))
       : [];
-    const expectedText = expectedAyahs.map((ayah) => ayah.text_ar).join(" ");
+    const expectedText = expectedAyahs.map(
+      (ayah: { surah_id: number; ayah_number: number; text_ar: string }) => ayah.text_ar,
+    ).join(" ");
     const answerText = normalizeAnswerText(answer);
     const comparison = compareRecitation(expectedText, answerText);
     const ayahScores = compareRecitationByAyah(expectedAyahs, answerText);
