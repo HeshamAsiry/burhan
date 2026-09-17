@@ -235,7 +235,7 @@ async function insertBatches(rows) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const { error } = await supabase
       .from("tajweed_occurrences")
-      .upsert(batch, { onConflict: "ayah_id,rule_id,word_index,word_index_end" });
+      .upsert(batch, { onConflict: "ayah_id,rule_id,word_index,word_index_end,trigger_text" });
 
     if (error) throw new Error(error.message);
     console.log(`tajweed_occurrences: ${Math.min(i + batch.length, rows.length)}/${rows.length}`);
