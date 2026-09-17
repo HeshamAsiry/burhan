@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "import:quran": "node scripts/import-tanzil.mjs",
-    "map:tajweed": "node scripts/build-tajweed-map.mjs"
+    "map:tajweed": "node scripts/build-tajweed-map.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
