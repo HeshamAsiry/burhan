@@ -1,0 +1,37 @@
+name: Build Quran phoneme references
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "Number of phoneme references written per batch"
+        required: false
+        default: "50"
+
+jobs:
+  map-phonemes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Quran phoneme references
+        run: npm run map:phonemes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BURHAN_PHONEMIZER_URL: ${{ secrets.BURHAN_PHONEMIZER_URL }}
+          BURHAN_PHONEMIZER_TOKEN: ${{ secrets.BURHAN_PHONEMIZER_TOKEN }}
+          BURHAN_PHONEMIZER_VERSION: ${{ vars.BURHAN_PHONEMIZER_VERSION }}
+          BURHAN_PHONEMIZER_SOURCE: ${{ vars.BURHAN_PHONEMIZER_SOURCE }}
+          PHONEME_REFERENCE_BATCH_SIZE: ${{ inputs.batch_size }}
