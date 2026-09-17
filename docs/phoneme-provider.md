@@ -57,3 +57,17 @@ The provider may also return madd timing observations:
 ~~~
 
 Burhan validates the occurrence IDs against its own Tajweed map and evaluates the duration against the selected Madd Profile. The provider cannot choose or replace the expected Quran-side occurrence.
+
+
+## Hugging Face Endpoint provider
+
+Set:
+
+~~~text
+BURHAN_TAJWEED_PHONEME_PROVIDER=huggingface
+BURHAN_HF_PHONEME_ENDPOINT_URL=https://<your-endpoint>
+HF_TOKEN=...
+BURHAN_HF_PHONEME_MODEL=wav2vec2-xls-r-300m-iqraeval
+~~~
+
+The Quran-specific model currently evaluated is FatimahEmadEldin/wav2vec2-xls-r-300m-iqraeval. Its model card states an Apache-2.0 license, a 74-token vocabulary built on 68 phonemes, and phoneme-level CTC inference for Quranic/MSA pronunciation. The model is not currently deployed by an Inference Provider, so a dedicated endpoint is required. The model card reports a blind-test F1 of 0.2020; Burhan therefore does not treat the provider as a final Tajweed authority and keeps human review in the loop.
