@@ -111,7 +111,12 @@ function extract(ayahText) {
     const lastLetter = lastBaseLetter(word);
     const letters = baseLetters(word);
 
-    if (cleaned.startsWith("ال")) {
+    if (cleaned.includes("الله")) {
+      add(out, "lafz_al_jalalah_lam", index, index, word, word, {
+        source: "lafz_al_jalalah",
+        requires_acoustic_validation: true,
+      });
+    } else if (cleaned.startsWith("ال")) {
       const articleTarget = letters[2] ?? null;
       if (articleTarget && SUN_LETTERS.has(articleTarget)) {
         add(out, "lam_shamsiyyah", index, index, word, word, {
