@@ -1,5 +1,6 @@
 import { validateAudioUrl } from "./audio-url";
 import type { MaddObservation, MaddTarget } from "./madd-acoustic-evaluator";
+import { runHuggingFacePhonemeProvider } from "./huggingface-phoneme-provider";
 
 export type PhonemeProviderResult = {
   provider: string;
@@ -34,6 +35,19 @@ export async function runPhonemeProvider(input: {
   questionId: string;
   maddTargets?: MaddTarget[];
 }): Promise<PhonemeProviderResult> {
+  const providerSelection =
+    process.env.BURHAN_TAJWEED_PHONEME_PROVIDER?.trim().toLowerCase() ||
+    "custom";
+
+  if (providerSelection === "huggingface") {
+    return runHuggingFacePhonemeProvider(input);
+  }
+
+  if (providerSelection !== "custom") {
+    throw new Error(
+      "Unsupported BURHAN_TAJWEED_PHONEME_PROVIDER. Use custom or huggingface.",
+    );
+  }
   const url = providerUrl();
   validateAudioUrl(input.audioUrl);
   const token = process.env.BURHAN_TAJWEED_PHONEME_PROVIDER_TOKEN;
