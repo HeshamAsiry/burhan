@@ -174,7 +174,11 @@ function expectedAyahText(answer: any) {
 
 function normalizeAnswerText(answer: unknown) {
   if (typeof answer === "string") return answer;
-  if (answer && typeof answer === "object" && typeof (answer as any).text === "string") return (answer as any).text;
+  if (answer && typeof answer === "object") {
+    const value = answer as any;
+    if (typeof value.text === "string") return value.text;
+    if (typeof value.transcript === "string") return value.transcript;
+  }
   return "";
 }
 
