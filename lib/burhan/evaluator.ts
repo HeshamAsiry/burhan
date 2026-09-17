@@ -263,6 +263,29 @@ export function evaluateQuestion(question: {
     };
   }
 
+  if (question.question_type === "mcq") {
+    const suppliedOption = typeof answer === "string"
+      ? answer
+      : typeof answer?.option_id === "string"
+        ? answer.option_id
+        : null;
+    const correctOption = typeof expected.option_id === "string" ? expected.option_id : null;
+    const correct = Boolean(suppliedOption && correctOption && suppliedOption === correctOption);
+
+    return {
+      question_id: question.id,
+      question_type: question.question_type,
+      score: correct ? 100 : 0,
+      status: correct ? "correct" : "incorrect",
+      feedback: {
+        details: [{
+          correct_option_id: correctOption,
+          supplied_option_id: suppliedOption,
+        }],
+      },
+    };
+  }
+
   if (question.question_type === "identify_surah") {
     const suppliedId = answer?.surah_id != null ? Number(answer.surah_id) : null;
     const suppliedName = typeof answer?.surah_name_ar === "string"
