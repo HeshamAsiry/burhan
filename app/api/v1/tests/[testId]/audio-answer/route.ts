@@ -153,7 +153,7 @@ export async function POST(
       transcription: audioEvaluation.transcription,
       audio: audioEvaluation.audio,
       evaluation: audioEvaluation.evaluation,
-      note: "Current v1 evaluates the STT transcript. Audio pronunciation and tajwid are not yet assessed.",
+      note: "Current v1 evaluates the STT transcript. Tajweed is analyzed separately through /api/v1/tajweed-analysis and can enter teacher review when confidence is insufficient.",
     });
   } catch (error) {
     console.error("Burhan audio answer failed", error);
