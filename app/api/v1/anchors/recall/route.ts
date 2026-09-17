@@ -21,7 +21,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await findAnchorRecall(parsed.data);
+    const result = await findAnchorRecall({
+      anchor: parsed.data.anchor,
+      occurrencesRequired: parsed.data.occurrences_required,
+      ayahsAfter: parsed.data.ayahs_after,
+      juz: parsed.data.juz,
+    });
     return NextResponse.json(result);
   } catch (error) {
     console.error("Burhan anchor recall failed", error);
