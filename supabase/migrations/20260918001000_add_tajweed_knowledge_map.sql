@@ -50,6 +50,7 @@ values
   ('qalqalah', 'قلقلة', 'Qalqalah', 'qalqalah', 'قلقلة أحد حروف قطب جد عند تحقق سبب القلقلة المكتوب.', 'deterministic_v1'),
   ('lam_shamsiyyah', 'لام شمسية', 'Sun Letter Lam', 'lam', 'إدغام لام التعريف في أحد الحروف الشمسية.', 'deterministic_v1'),
   ('lam_qamariyyah', 'لام قمرية', 'Moon Letter Lam', 'lam', 'إظهار لام التعريف قبل أحد الحروف القمرية.', 'deterministic_v1'),
+  ('lafz_al_jalalah_lam', 'لام لفظ الجلالة', 'Lafz al-Jalalah Lam', 'lam', 'لام لفظ الجلالة تحتاج تحليلًا صوتيًا للسياق التفخيمي أو الترقيقي.', 'planned'),
   ('madd_asli', 'مد طبيعي', 'Natural Madd', 'madd', 'مد أصلي يحتاج لاحقًا إلى تحليل زمني صوتي وليس مجرد نص.', 'planned'),
   ('ra_tafkhim_tarqiq', 'أحكام الراء', 'Raa Tafkhim/Tarqiq', 'tafkhim_tarqiq', 'أحكام تفخيم وترقيق الراء تحتاج تحليلًا سياقيًا وصوتيًا أعمق.', 'planned')
 on conflict (code) do update set
