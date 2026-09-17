@@ -316,6 +316,7 @@ export async function POST(request: Request) {
           evaluation: {
             mode: "phoneme_analysis",
             phoneme_evaluation: phonemeEvaluation,
+            madd_summary: maddSummary,
           },
           updated_at: new Date().toISOString(),
         },
