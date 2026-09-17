@@ -88,7 +88,20 @@ export function evaluateMaddObservation(
   const referenceMs = observation.reference_harakah_ms ?? null;
 
   if (referenceMs == null || !Number.isFinite(referenceMs) || referenceMs <= 0) {
-    reasons.push("missing_harakah_reference");
+    return {
+      occurrence_id: target.occurrence_id,
+      rule_code: target.rule_code,
+      observed_duration_ms: observation.duration_ms,
+      reference_harakah_ms: null,
+      estimated_harakah: null,
+      expected_harakah: target.expected_harakah,
+      deviation_percent: null,
+      measurement_confidence: observation.confidence,
+      stop_detected: observation.stop_detected ?? null,
+      status: "not_assessed",
+      reasons: [...reasons, "missing_harakah_reference"],
+      evidence: observation.evidence ?? {},
+    };
   }
 
   if (
@@ -104,7 +117,7 @@ export function evaluateMaddObservation(
       occurrence_id: target.occurrence_id,
       rule_code: target.rule_code,
       observed_duration_ms: observation.duration_ms,
-      reference_harakah_ms: validatedReferenceMs,
+      reference_harakah_ms: referenceMs,
       estimated_harakah: null,
       expected_harakah: target.expected_harakah,
       deviation_percent: null,
@@ -133,7 +146,7 @@ export function evaluateMaddObservation(
     };
   }
 
-  const validatedReferenceMs = referenceMs;
+  const validatedReferenceMs: number = referenceMs;
   const estimatedHarakah = observation.duration_ms / validatedReferenceMs;
   const expected = nearestExpected(estimatedHarakah, target.expected_harakah);
   const deviationPercent =
