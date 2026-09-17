@@ -27,7 +27,11 @@ const LEVELS = {
 async function getRangeCandidates(juz: number, cumulative: boolean, progression: "from_30_to_1" | "from_1_to_30") {
   const db = getSupabaseAdmin();
   const query = db.from("ayahs").select("surah_id,ayah_number,juz_number").order("surah_id").order("ayah_number");
-  const { data, error } = cumulative\n    ? progression === "from_30_to_1"\n      ? await query.gte("juz_number", juz)\n      : await query.lte("juz_number", juz)\n    : await query.eq("juz_number", juz);
+  const { data, error } = cumulative
+    ? progression === "from_30_to_1"
+      ? await query.gte("juz_number", juz)
+      : await query.lte("juz_number", juz)
+    : await query.eq("juz_number", juz);
   if (error) throw new Error(error.message);
   return (data ?? []) as Array<{ surah_id: number; ayah_number: number }>;
 }
@@ -92,7 +96,9 @@ export async function buildTestBlueprint(input: BlueprintInput) {
       occurrences_target: level.occurrences,
       cumulative,
       progression,
-      coverage_scope: cumulative\n        ? progression === "from_30_to_1" ? `juz_${input.juz}_to_30` : `juz_1_to_${input.juz}`\n        : `juz_${input.juz}`,
+      coverage_scope: cumulative
+        ? progression === "from_30_to_1" ? `juz_${input.juz}_to_30` : `juz_1_to_${input.juz}`
+        : `juz_${input.juz}`,
       note: "Independent heuristic inspired by the documented methodology; not a reproduction of any external question bank.",
     },
     questions,
