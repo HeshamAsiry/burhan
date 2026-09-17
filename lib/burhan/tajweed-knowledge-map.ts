@@ -30,7 +30,9 @@ function stripMarks(value: string) {
 }
 
 function baseLetters(value: string) {
-  return [...value].filter((character) => !ARABIC_MARKS.test(character) && character !== "ـ");
+  return [...value]
+    .map((character) => (character === "ٱ" ? "ا" : character))
+    .filter((character) => !ARABIC_MARKS.test(character) && character !== "ـ");
 }
 
 function firstBaseLetter(value: string) {
