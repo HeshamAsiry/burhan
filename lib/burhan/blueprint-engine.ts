@@ -9,7 +9,8 @@ export type BlueprintInput = {
 };
 
 export type BlueprintQuestionSpec =
-  | { type: "anchor_recall"; anchor: string; occurrences_required: number; ayahs_after: number; juz_min: number; juz_max: number; include_surah: boolean }\n  | { type: "mutashabihat"; anchor: string; occurrences_required: number; ayahs_after: number; threshold: number; limit: number; juz: number }
+  | { type: "anchor_recall"; anchor: string; occurrences_required: number; ayahs_after: number; juz_min: number; juz_max: number; include_surah: boolean }
+  | { type: "mutashabihat"; anchor: string; occurrences_required: number; ayahs_after: number; threshold: number; limit: number; juz: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number }; end: { surah_id: number; ayah_number: number } };
 
 type Candidate = { text_ar: string; normalized_text: string; anchor_type: string; occurrence_count: number };
@@ -33,7 +34,7 @@ async function getRangeCandidates(juz: number, cumulative: boolean, progression:
       : await query.lte("juz_number", juz)
     : await query.eq("juz_number", juz);
   if (error) throw new Error(error.message);
-  return (data ?? []) as Array<{ surah_id: number; ayah_number: number }>;
+  return (data ?? []) as Array<{ surah_id: number; ayah_number: number; juz_number: number }>;
 }
 
 async function getAnchorCandidates(juz: number, cumulative: boolean, progression: "from_30_to_1" | "from_1_to_30", limit = 80) {
@@ -104,7 +105,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
   const progression = input.progression ?? "from_30_to_1";
   const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz, cumulative, progression), getAnchorCandidates(input.juz, cumulative, progression)]);
   if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in the selected cumulative scope for the requested blueprint.");
-  if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in this Juz: need ${mutCount}, found ${candidates.length}.`);
+  if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in the selected scope: need ${mutCount}, found ${candidates.length}.`);
 
   const anchorSpecs: BlueprintQuestionSpec[] = [];
   const usedAnchors = new Set<string>();
@@ -119,7 +120,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
       }
     }
     usedAnchors.add(candidate.normalized_text);
-    anchorSpecs.push({ type: "anchor_recall", anchor: candidate.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, threshold: input.level >= 6 ? 0.55 : 0.45, limit: 30, juz: input.juz });
+    anchorSpecs.push({ type: "anchor_recall", anchor: candidate.text_ar, occurrences_required: Math.min(level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, juz_min: cumulative ? (progression === "from_30_to_1" ? input.juz : 1) : input.juz, juz_max: cumulative ? (progression === "from_30_to_1" ? 30 : input.juz) : input.juz, include_surah: input.level >= 3 });
   }
 
   const ranges = buildRanges(ayahs, rangeCount, level.rangeAyahs, input.juz, cumulative);
