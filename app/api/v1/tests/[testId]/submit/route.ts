@@ -165,7 +165,7 @@ export async function POST(
     let masteryResult: { updated?: number; skipped?: string; attempt_id?: string; error?: string } = { skipped: "external_user_id_required" };
     try {
       masteryResult = await updateMasteryForAttempt({
-        externalUserId: parsed.data.external_user_id,
+        externalUserId: parsed.data.external_user_id ?? attempt.external_user_id,
         attemptId: attempt.id,
         evaluatedQuestions: questions.map((question, index) => ({ question, evaluation: evaluations[index] })),
         attemptedAt: submittedAt,
