@@ -8,6 +8,7 @@ const LOCAL_TEXT_PATH = path.join(ROOT, "data", "quran-uthmani.xml");
 const LOCAL_METADATA_PATH = path.join(ROOT, "data", "quran-data.xml");
 const TEXT_URL = process.env.TANZIL_TEXT_URL || "https://tanzil.net/pub/quran-uthmani.xml";
 const METADATA_URL = process.env.TANZIL_METADATA_URL || "https://tanzil.net/pub/quran-data.xml";
+const SOURCE_URL = "https://tanzil.net/docs/download";
 const SOURCE_NAME = "Tanzil Quran Text - Uthmani";
 const SOURCE_VERSION = "1.1";
 const BATCH_SIZE = Number(process.env.IMPORT_BATCH_SIZE || 500);
@@ -135,7 +136,7 @@ const metadata = parseMetadata(metadataXml);
 
 const { data: source, error: sourceError } = await supabase
   .from("quran_sources")
-  .upsert({ name: SOURCE_NAME, version: SOURCE_VERSION, source_url: TEXT_URL, license: "CC BY 3.0 / Tanzil Terms of Use", checksum, imported_at: new Date().toISOString(), is_active: true }, { onConflict: "name,version" })
+  .upsert({ name: SOURCE_NAME, version: SOURCE_VERSION, source_url: SOURCE_URL, license: "CC BY 3.0 / Tanzil Terms of Use", checksum, imported_at: new Date().toISOString(), is_active: true }, { onConflict: "name,version" })
   .select("id")
   .single();
 if (sourceError) throw new Error(`quran_sources import failed: ${sourceError.message}`);
@@ -143,6 +144,7 @@ if (sourceError) throw new Error(`quran_sources import failed: ${sourceError.mes
 const surahRows = surahs.map((s) => {
   const m = metadata.surahs.get(s.number) || {};
   return {
+    id: s.number,
     number: s.number,
     name_ar: s.name || m.name || "",
     name_en: m.ename || "",
