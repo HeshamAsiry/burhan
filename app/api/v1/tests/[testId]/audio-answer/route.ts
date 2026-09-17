@@ -59,6 +59,12 @@ export async function POST(
     if (attempt.submitted_at) return NextResponse.json({ error: "ATTEMPT_ALREADY_SUBMITTED" }, { status: 409 });
     if (!question) return NextResponse.json({ error: "QUESTION_NOT_FOUND" }, { status: 404 });
     if (question.test_id !== testId) return NextResponse.json({ error: "QUESTION_TEST_MISMATCH" }, { status: 409 });
+    if (!["recite_range", "anchor_recall", "mutashabihat"].includes(question.question_type)) {
+      return NextResponse.json(
+        { error: "AUDIO_NOT_SUPPORTED_FOR_QUESTION_TYPE", question_type: question.question_type },
+        { status: 422 },
+      );
+    }
 
     let transcript = parsed.data.transcript?.trim() ?? "";
     let transcriptionProvider = parsed.data.transcription_provider;
