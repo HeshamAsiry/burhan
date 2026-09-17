@@ -31,6 +31,7 @@ export type QuestionEvaluation = {
     extra_occurrences?: number;
     extra_tokens?: number;
     surah_correct?: boolean;
+    ayah_scores?: Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }>;
     details?: Array<Record<string, unknown>>;
     ayah_scores?: Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }>;
   };
@@ -96,7 +97,7 @@ function lcsMatchedExpectedIndices(a: string[], b: string[]) {
   return matched;
 }
 
-function compareRecitationByAyah(
+export function compareRecitationByAyah(
   expectedAyahs: Array<{ surah_id: number; ayah_number: number; text_ar: string }>,
   answerText: string,
 ) {
@@ -186,6 +187,18 @@ function scoreOccurrence(expected: any, supplied: any, requireSurah: boolean) {
   const expectedText = expectedAyahText(expected);
   const answerText = normalizeAnswerText(supplied);
   const comparison = compareRecitation(expectedText, answerText);
+  const ayahScores = Array.isArray(expected?.ayahs)
+    ? compareRecitationByAyah(
+        expected.ayahs
+          .filter((ayah: any) => ayah?.surah_id != null && ayah?.ayah_number != null && ayah?.text_ar)
+          .map((ayah: any) => ({
+            surah_id: Number(ayah.surah_id),
+            ayah_number: Number(ayah.ayah_number),
+            text_ar: ayah.text_ar,
+          })),
+        answerText,
+      )
+    : [];
 
   let surahCorrect = true;
   if (requireSurah) {
@@ -202,7 +215,7 @@ function scoreOccurrence(expected: any, supplied: any, requireSurah: boolean) {
     ? comparison.score * 0.85
     : comparison.score;
 
-  return { ...comparison, score: Number(adjustedScore.toFixed(2)), surahCorrect };
+  return { ...comparison, score: Number(adjustedScore.toFixed(2)), surahCorrect, ayahScores };
 }
 
 function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: any[], requireSurah: boolean) {
@@ -211,7 +224,7 @@ function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: 
 
   for (const supplied of suppliedOccurrences) {
     let bestIndex = -1;
-    let best = { score: 0, matchedTokens: 0, expectedTokens: 0, answerTokens: 0, missingTokens: 0, extraTokens: 0, surahCorrect: true };
+    let best = { score: 0, matchedTokens: 0, expectedTokens: 0, answerTokens: 0, missingTokens: 0, extraTokens: 0, surahCorrect: true, ayahScores: [] as Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }> };
 
     for (let i = 0; i < expectedOccurrences.length; i++) {
       if (used.has(i)) continue;
