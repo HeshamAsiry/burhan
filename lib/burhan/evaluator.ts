@@ -32,6 +32,7 @@ export type QuestionEvaluation = {
     extra_tokens?: number;
     surah_correct?: boolean;
     details?: Array<Record<string, unknown>>;
+    ayah_scores?: Array<{ surah_id: number; ayah_number: number; score: number; status: EvaluationStatus; expected_tokens: number; matched_tokens: number }>;
   };
 };
 
@@ -62,6 +63,76 @@ function lcsLength(a: string[], b: string[]) {
   }
 
   return prev[shorter.length];
+}
+
+function lcsMatchedExpectedIndices(a: string[], b: string[]) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, () => new Uint16Array(cols));
+
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1] + 1
+        : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  const matched = new Set<number>();
+  let i = a.length;
+  let j = b.length;
+  while (i > 0 && j > 0) {
+    if (a[i - 1] === b[j - 1]) {
+      matched.add(i - 1);
+      i--;
+      j--;
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+
+  return matched;
+}
+
+function compareRecitationByAyah(
+  expectedAyahs: Array<{ surah_id: number; ayah_number: number; text_ar: string }>,
+  answerText: string,
+) {
+  const answer = tokens(answerText);
+  const expectedWithTokens = expectedAyahs.map((ayah) => ({
+    ...ayah,
+    tokens: tokens(ayah.text_ar),
+  }));
+  const expected = expectedWithTokens.flatMap((ayah) => ayah.tokens);
+
+  if (!expected.length) return [];
+
+  const matchedIndices = lcsMatchedExpectedIndices(expected, answer);
+  const extraPenalty = answer.length ? Math.min(1, expected.length / answer.length) : 0;
+
+  let offset = 0;
+  return expectedWithTokens.map((ayah) => {
+    const start = offset;
+    const end = offset + ayah.tokens.length;
+    offset = end;
+
+    let matched = 0;
+    for (let i = start; i < end; i++) {
+      if (matchedIndices.has(i)) matched++;
+    }
+
+    const score = Number((matched / Math.max(1, ayah.tokens.length) * extraPenalty * 100).toFixed(2));
+    return {
+      surah_id: ayah.surah_id,
+      ayah_number: ayah.ayah_number,
+      score,
+      status: statusForScore(score),
+      expected_tokens: ayah.tokens.length,
+      matched_tokens: matched,
+    };
+  });
 }
 
 export function compareRecitation(expectedText: string, answerText: string) {
@@ -172,17 +243,23 @@ export function evaluateQuestion(question: {
   const expected = question.expected_answer ?? {};
 
   if (question.question_type === "recite_range") {
-    const expectedText = Array.isArray(expected.ayahs)
-      ? expected.ayahs.map((ayah: any) => ayah?.text_ar ?? "").join(" ")
-      : "";
+    const expectedAyahs = Array.isArray(expected.ayahs)
+      ? expected.ayahs.filter((ayah: any) => ayah?.text_ar).map((ayah: any) => ({
+          surah_id: Number(ayah.surah_id),
+          ayah_number: Number(ayah.ayah_number),
+          text_ar: ayah.text_ar,
+        }))
+      : [];
+    const expectedText = expectedAyahs.map((ayah) => ayah.text_ar).join(" ");
     const answerText = normalizeAnswerText(answer);
     const comparison = compareRecitation(expectedText, answerText);
+    const ayahScores = compareRecitationByAyah(expectedAyahs, answerText);
     return {
       question_id: question.id,
       question_type: question.question_type,
       score: comparison.score,
       status: statusForScore(comparison.score),
-      feedback: comparison,
+      feedback: { ...comparison, ayah_scores: ayahScores },
     };
   }
 
