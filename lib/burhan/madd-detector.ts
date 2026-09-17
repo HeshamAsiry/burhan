@@ -304,21 +304,32 @@ export function detectMaddOccurrences(
   }
 
   const finalUnit = units.at(-1);
-  if (!next && finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
-    occurrences.push({
-      ruleCode: "madd_iwad",
-      wordIndex,
-      wordIndexEnd: wordIndex,
-      charStart: finalUnit.start,
-      charEnd: finalUnit.end,
-      triggerText: word.slice(finalUnit.start, finalUnit.end),
-      contextText: word,
-      expectedBehavior: {
-        condition: "waqf",
-        reference_duration: "2_harakah",
-        excluded_final_letter: "ta_marbuta",
-      },
-    });
+  if (!next) {
+    const iwadSource =
+      finalUnit?.marks.includes(FATHATAN)
+        ? finalUnit
+        : units.at(-2)?.marks.includes(FATHATAN)
+          ? units.at(-2)
+          : undefined;
+
+    const iwadFinalBase = finalUnit?.base === "ا" ? units.at(-2)?.base : finalUnit?.base;
+
+    if (iwadSource && iwadFinalBase !== "ة") {
+      occurrences.push({
+        ruleCode: "madd_iwad",
+        wordIndex,
+        wordIndexEnd: wordIndex,
+        charStart: iwadSource.start,
+        charEnd: finalUnit?.end ?? iwadSource.end,
+        triggerText: word.slice(iwadSource.start, finalUnit?.end ?? iwadSource.end),
+        contextText: word,
+        expectedBehavior: {
+          condition: "waqf",
+          reference_duration: "2_harakah",
+          excluded_final_letter: "ta_marbuta",
+        },
+      });
+    }
   }
 
   if (
