@@ -103,16 +103,33 @@ export async function buildTestBlueprint(input: BlueprintInput) {
   const rangeCount = questionCount - mutCount;
   const cumulative = input.testType === "cumulative";
   const progression = input.progression ?? "from_30_to_1";
-  const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz, cumulative, progression), getAnchorCandidates(input.juz, cumulative, progression)]);
+  const [ayahs, currentCandidates, scopedCandidates] = await Promise.all([
+    getRangeCandidates(input.juz, cumulative, progression),
+    getAnchorCandidates(input.juz, false, progression),
+    getAnchorCandidates(input.juz, cumulative, progression),
+  ]);
   if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in the selected cumulative scope for the requested blueprint.");
-  if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in the selected scope: need ${mutCount}, found ${candidates.length}.`);
+
+  const currentAnchorKeys = new Set(currentCandidates.map((candidate) => candidate.normalized_text));
+  const previousCandidates = scopedCandidates.filter((candidate) => !currentAnchorKeys.has(candidate.normalized_text));
+  const anchorPools = cumulative
+    ? [
+        ...pickEvenly(currentCandidates, Math.min(mutCount, Math.ceil(mutCount * 0.6))),
+        ...pickEvenly(previousCandidates, Math.max(0, mutCount - Math.ceil(mutCount * 0.6))),
+      ]
+    : pickEvenly(currentCandidates, mutCount);
+
+  if (mutCount > 0 && anchorPools.length < mutCount) {
+    throw new Error(`Not enough unique repeated-anchor candidates in the selected scope: need ${mutCount}, found ${anchorPools.length}.`);
+  }
 
   const anchorSpecs: BlueprintQuestionSpec[] = [];
   const usedAnchors = new Set<string>();
   for (let i = 0; i < mutCount; i++) {
-    const candidate = candidates[i % candidates.length];
-    if (usedAnchors.has(candidate.normalized_text) && candidates.length > usedAnchors.size) {
-      const next = candidates.find((c) => !usedAnchors.has(c.normalized_text));
+    const candidate = anchorPools[i];
+    if (!candidate) continue;
+    if (usedAnchors.has(candidate.normalized_text) && anchorPools.length > usedAnchors.size) {
+      const next = anchorPools.find((c) => !usedAnchors.has(c.normalized_text));
       if (next) {
         usedAnchors.add(next.normalized_text);
         anchorSpecs.push({ type: "anchor_recall", anchor: next.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, juz_min: cumulative ? (progression === "from_30_to_1" ? input.juz : 1), juz_max: cumulative ? (progression === "from_30_to_1" ? 30 : input.juz) : input.juz, include_surah: input.level >= 3 });
