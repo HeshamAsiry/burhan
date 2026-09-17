@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdmin } from "../../../../../../../lib/supabase-admin";
+import { getSupabaseAdmin } from "../../../../../../lib/supabase-admin";
 
 const schema = z.object({
   status: z.enum(["confirmed", "rejected", "unclear"]),
