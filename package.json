@@ -9,7 +9,9 @@
     "lint": "next lint",
     "import:quran": "node scripts/import-tanzil.mjs",
     "map:tajweed": "node scripts/build-tajweed-map.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "map:madd": "node scripts/build-madd-map.mjs",
+    "check:madd": "node scripts/check-madd-detector.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
