@@ -44,7 +44,7 @@ export async function findAnchorRecall(input: AnchorRecallInput) {
   const selected =
     input.occurrencesRequired === "all"
       ? allMatches
-      : allMatches.slice(0, input.occurrencesRequired);
+      : chooseEvenly(allMatches, Math.min(input.occurrencesRequired, allMatches.length));
 
   const surahIds = [...new Set(selected.map((match) => match.surah_id))];
   const ayahByKey = new Map<string, AyahRow>();
