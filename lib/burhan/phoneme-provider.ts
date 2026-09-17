@@ -70,6 +70,16 @@ export async function runPhonemeProvider(input: {
     throw new Error("Tajweed phoneme provider returned an invalid confidence.");
   }
 
+  const tajweedScore =
+    payload.tajweed_score == null ? null : Number(payload.tajweed_score);
+
+  if (
+    tajweedScore != null &&
+    (!Number.isFinite(tajweedScore) || tajweedScore < 0 || tajweedScore > 100)
+  ) {
+    throw new Error("Tajweed phoneme provider returned an invalid tajweed_score.");
+  }
+
   return {
     provider: typeof payload.provider === "string" ? payload.provider : "custom",
     model: typeof payload.model === "string" ? payload.model : "unknown",
@@ -79,8 +89,7 @@ export async function runPhonemeProvider(input: {
       payload.audio_quality === "unclear" || payload.audio_quality === "poor"
         ? payload.audio_quality
         : "good",
-    tajweed_score:
-      payload.tajweed_score == null ? null : Number(payload.tajweed_score),
+    tajweed_score: tajweedScore,
     issue_detected:
       typeof payload.issue_detected === "boolean"
         ? payload.issue_detected
