@@ -9,7 +9,7 @@ export type BlueprintInput = {
 };
 
 export type BlueprintQuestionSpec =
-  | { type: "mutashabihat"; anchor: string; occurrences_required: number; ayahs_after: number; threshold: number; limit: number; juz: number }
+  | { type: "anchor_recall"; anchor: string; occurrences_required: number; ayahs_after: number; juz_min: number; juz_max: number; include_surah: boolean }\n  | { type: "mutashabihat"; anchor: string; occurrences_required: number; ayahs_after: number; threshold: number; limit: number; juz: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number }; end: { surah_id: number; ayah_number: number } };
 
 type Candidate = { text_ar: string; normalized_text: string; anchor_type: string; occurrence_count: number };
@@ -56,20 +56,6 @@ function buildRanges(
   currentJuz: number,
   cumulative: boolean,
 ) {
-  if (!cumulative) {
-    const usable = ayahs.filter((_, i) => i + length <= ayahs.length);
-    return pickEvenly(usable, count).map((start) => {
-      const index = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
-      const end = ayahs[index + length - 1];
-      return { type: "recite_range" as const, start, end };
-    });
-  }
-
-  const current = ayahs.filter((a) => a.juz_number === currentJuz);
-  const previous = ayahs.filter((a) => a.juz_number !== currentJuz);
-  const currentCount = Math.min(count, Math.max(1, Math.ceil(count * 0.6)));
-  const previousCount = count - currentCount;
-
   const make = (pool: typeof ayahs, n: number) => {
     const usable = pool.filter((_, i) => i + length <= pool.length);
     return pickEvenly(usable, n).map((start) => {
@@ -79,7 +65,34 @@ function buildRanges(
     });
   };
 
-  return [...make(current, currentCount), ...make(previous, previousCount)];
+  if (!cumulative) return make(ayahs, count);
+
+  const byJuz = new Map<number, typeof ayahs>();
+  for (const ayah of ayahs) {
+    if (ayah.juz_number == null) continue;
+    const list = byJuz.get(ayah.juz_number) ?? [];
+    list.push(ayah);
+    byJuz.set(ayah.juz_number, list);
+  }
+
+  const juzNumbers = [...byJuz.keys()].sort((a, b) => a - b);
+  const currentPool = byJuz.get(currentJuz) ?? [];
+  const previousJuzs = juzNumbers.filter((j) => j !== currentJuz);
+  const currentCount = Math.min(count, Math.max(1, Math.ceil(count * 0.6)));
+  const previousCount = count - currentCount;
+
+  const result = [...make(currentPool, currentCount)];
+  if (previousCount <= 0 || !previousJuzs.length) return result;
+
+  const perJuz = Math.floor(previousCount / previousJuzs.length);
+  let remainder = previousCount % previousJuzs.length;
+  for (const juz of previousJuzs) {
+    const n = perJuz + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder--;
+    if (n > 0) result.push(...make(byJuz.get(juz) ?? [], n));
+  }
+
+  return result.slice(0, count);
 }
 
 export async function buildTestBlueprint(input: BlueprintInput) {
@@ -101,12 +114,12 @@ export async function buildTestBlueprint(input: BlueprintInput) {
       const next = candidates.find((c) => !usedAnchors.has(c.normalized_text));
       if (next) {
         usedAnchors.add(next.normalized_text);
-        anchorSpecs.push({ type: "mutashabihat", anchor: next.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, threshold: input.level >= 6 ? 0.55 : 0.45, limit: 30, juz: input.juz });
+        anchorSpecs.push({ type: "anchor_recall", anchor: next.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, juz_min: cumulative ? (progression === "from_30_to_1" ? input.juz : 1), juz_max: cumulative ? (progression === "from_30_to_1" ? 30 : input.juz) : input.juz, include_surah: input.level >= 3 });
         continue;
       }
     }
     usedAnchors.add(candidate.normalized_text);
-    anchorSpecs.push({ type: "mutashabihat", anchor: candidate.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, threshold: input.level >= 6 ? 0.55 : 0.45, limit: 30, juz: input.juz });
+    anchorSpecs.push({ type: "anchor_recall", anchor: candidate.text_ar, occurrences_required: Math.min(level.occurrences === "all" ? candidate.occurrence_count : level.occurrences, candidate.occurrence_count), ayahs_after: input.level >= 5 ? 2 : 1, threshold: input.level >= 6 ? 0.55 : 0.45, limit: 30, juz: input.juz });
   }
 
   const ranges = buildRanges(ayahs, rangeCount, level.rangeAyahs, input.juz, cumulative);
@@ -115,8 +128,8 @@ export async function buildTestBlueprint(input: BlueprintInput) {
     juz: input.juz, level: input.level, test_type: input.testType ?? "custom", question_count: questions.length,
     config: {
       generator: "burhan-v1-independent-blueprint",
-      mutashabihat_count: anchorSpecs.length, recite_range_count: ranges.length,
-      mutashabihat_ratio: level.mutashabihatRatio, range_ayahs: level.rangeAyahs,
+      anchor_recall_count: anchorSpecs.length, recite_range_count: ranges.length,
+      anchor_recall_ratio: level.mutashabihatRatio, range_ayahs: level.rangeAyahs,
       occurrences_target: level.occurrences,
       cumulative,
       progression,
