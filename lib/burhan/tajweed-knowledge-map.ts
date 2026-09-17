@@ -38,6 +38,12 @@ function lastBaseLetter(value: string) {
   return letters.at(-1) ?? null;
 }
 
+function firstBaseLetterAfterArticle(value: string) {
+  const letters = baseLetters(value);
+  if (letters.length < 3 || letters[0] !== "ا" || letters[1] !== "ل") return null;
+  return letters[2] ?? null;
+}
+
 function hasSukunAfter(value: string, letter: string) {
   return [...value].some((character, index, chars) => {
     if (character !== letter) return false;
@@ -105,7 +111,17 @@ export function extractDeterministicTajweedOccurrences(
     const firstLetter = firstBaseLetter(word);
     const lastLetter = lastBaseLetter(word);
 
-    if (cleaned.startsWith("ال")) {
+    if (cleaned.includes("الله")) {
+      addOccurrence(
+        occurrences,
+        "lafz_al_jalalah_lam",
+        index,
+        index,
+        word,
+        word,
+        { source: "lafz_al_jalalah", requires_acoustic_validation: true },
+      );
+    } else if (cleaned.startsWith("ال")) {
       const articleTarget = firstBaseLetterAfterArticle(word);
       if (articleTarget && SUN_LETTERS.has(articleTarget)) {
         addOccurrence(
