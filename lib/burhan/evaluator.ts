@@ -263,6 +263,39 @@ export function evaluateQuestion(question: {
     };
   }
 
+  if (question.question_type === "identify_surah") {
+    const suppliedId = answer?.surah_id != null ? Number(answer.surah_id) : null;
+    const suppliedName = typeof answer?.surah_name_ar === "string"
+      ? normalizeForEvaluation(answer.surah_name_ar)
+      : typeof answer?.surah_name === "string"
+        ? normalizeForEvaluation(answer.surah_name)
+        : null;
+    const expectedId = expected.surah_id != null ? Number(expected.surah_id) : null;
+    const expectedName = typeof expected.surah_name_ar === "string"
+      ? normalizeForEvaluation(expected.surah_name_ar)
+      : null;
+
+    const idCorrect = expectedId != null && suppliedId != null && expectedId === suppliedId;
+    const nameCorrect = expectedName != null && suppliedName != null && expectedName === suppliedName;
+    const correct = idCorrect || nameCorrect;
+
+    return {
+      question_id: question.id,
+      question_type: question.question_type,
+      score: correct ? 100 : 0,
+      status: correct ? "correct" : "incorrect",
+      feedback: {
+        surah_correct: correct,
+        details: [{
+          expected_surah_id: expectedId,
+          supplied_surah_id: suppliedId,
+          expected_surah_name: expected.surah_name_ar ?? null,
+          supplied_surah_name: answer?.surah_name_ar ?? answer?.surah_name ?? null,
+        }],
+      },
+    };
+  }
+
   if (question.question_type === "anchor_recall" || question.question_type === "mutashabihat") {
     const expectedOccurrences = Array.isArray(expected.occurrences) ? expected.occurrences : [];
     const suppliedOccurrences = Array.isArray(answer?.occurrences)
