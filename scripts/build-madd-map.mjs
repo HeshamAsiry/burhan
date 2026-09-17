@@ -305,18 +305,18 @@ await supabase
 const rows = [];
 
 for (const ayah of ayahs) {
-  let globalWordIndex = 0;
+  const words = ayah.text_ar.split(/\s+/u).filter(Boolean);
 
-  for (const word of ayah.text_ar.split(/\s+/u).filter(Boolean)) {
-    const nextWord = undefined;
-    const detected = detectMadd(word, globalWordIndex, nextWord);
+  for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
+    const word = words[wordIndex];
+    const nextWord = words[wordIndex + 1] ?? "";
+
+    const detected = detectMadd(word, wordIndex, nextWord);
 
     for (const occurrence of detected) {
       occurrence.ayah_id = ayah.id;
       rows.push(occurrence);
     }
-
-    globalWordIndex++;
   }
 }
 
