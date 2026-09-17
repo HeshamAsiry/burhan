@@ -24,13 +24,13 @@ A "position" (موضع) is an occurrence of an anchor. It is not a question type
 }
 ```
 
-The Quran may contain more matching occurrences than the question requests. Selection of the requested occurrences should eventually be driven by the knowledge map and difficulty model, not by arbitrary array order.
+The Quran may contain more matching occurrences than the question requests. Selection of the requested occurrences is now deterministic and spread across the available matches; future versions can add learner history, exposure, similarity, and coverage signals.
 
 ## Current question types
 
 - `recite_range`: recite from a start anchor/ayah through an end anchor/ayah.
-- `recite_following`: recite the anchor ayah plus N following ayahs.
-- `mutashabihat`: distinguish and recall similar passages.
+- `recite_following`: recite the anchor ayah plus N following ayahs.\n- `anchor_recall`: locate one or more occurrences of an anchor and recite the requested following ayahs; it may also require the surah name.
+- `mutashabihat`: distinguish and recall similar passages as a similarity-family task, separate from occurrence counting.
 - `identify_surah`: identify the surah associated with the requested occurrence.
 - `mcq`: multiple-choice recall/recognition.
 
