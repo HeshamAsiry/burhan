@@ -35,7 +35,7 @@ export async function generateTest(input: {
         ayahsAfter: spec.ayahs_after,
         threshold: spec.threshold,
         limit: spec.limit,
-        juz: spec.juz,
+        juz: spec.juz ?? input.juz,
       }));
     } else {
       generated.push(await generateReciteRangeQuestion(spec));
