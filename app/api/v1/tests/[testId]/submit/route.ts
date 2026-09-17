@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../../../../../../lib/supabase-admin";
 import { evaluateQuestion, summarizeEvaluations } from "../../../../../../lib/burhan/evaluator";
+import { updateMasteryForAttempt } from "../../../../../../lib/burhan/mastery-engine";
 
 const answerSchema = z.object({
   question_id: z.string().uuid(),
@@ -115,8 +116,22 @@ export async function POST(
       throw new Error(answersError.message);
     }
 
+    let masteryResult: { updated?: number; skipped?: string; attempt_id?: string; error?: string } = { skipped: "external_user_id_required" };
+    try {
+      masteryResult = await updateMasteryForAttempt({
+        externalUserId: parsed.data.external_user_id,
+        attemptId: attempt.id,
+        evaluatedQuestions: questions.map((question, index) => ({ question, evaluation: evaluations[index] })),
+        attemptedAt: submittedAt,
+      });
+    } catch (masteryError) {
+      console.error("Burhan mastery update failed", masteryError);
+      masteryResult = { error: masteryError instanceof Error ? masteryError.message : "Mastery update failed." };
+    }
+
     return NextResponse.json({
       attempt_id: attempt.id,
+      mastery: masteryResult,
       test: {
         id: test.id,
         level: test.level,
