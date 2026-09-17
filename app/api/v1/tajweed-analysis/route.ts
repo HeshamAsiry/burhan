@@ -171,7 +171,11 @@ export async function POST(request: Request) {
                   .slice(0, 200)
                   .map((operation) => ({
                     type: "phoneme_error",
-                    ...operation,
+                    operation_type: operation.type,
+                    expected: operation.expected,
+                    predicted: operation.predicted,
+                    expected_index: operation.expected_index,
+                    predicted_index: operation.predicted_index,
                   }))
               : []),
           ],
