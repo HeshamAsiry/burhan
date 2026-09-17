@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../../../../../../lib/supabase-admin";
 import { evaluateAudioTranscript } from "../../../../../../lib/burhan/audio-evaluator";
+import { transcribeAudioFromUrl } from "../../../../../../lib/burhan/transcription";
 
 const schema = z.object({
   attempt_id: z.string().uuid(),
@@ -9,11 +10,12 @@ const schema = z.object({
   audio_url: z.string().url().optional(),
   duration_ms: z.number().int().positive().max(30 * 60 * 1000).optional(),
   mime_type: z.string().max(100).optional(),
-  transcript: z.string().min(1).max(20000),
+  transcript: z.string().min(1).max(20000).optional(),
+  model: z.string().max(100).optional(),
   transcription_provider: z.string().max(100).optional(),
   transcription_confidence: z.number().min(0).max(1).optional(),
   transcription_language: z.string().max(20).default("ar"),
-});
+}).refine((value) => Boolean(value.transcript?.trim()) || Boolean(value.audio_url), { message: "Provide transcript or audio_url." });
 
 export async function POST(
   request: Request,
@@ -58,24 +60,49 @@ export async function POST(
     if (!question) return NextResponse.json({ error: "QUESTION_NOT_FOUND" }, { status: 404 });
     if (question.test_id !== testId) return NextResponse.json({ error: "QUESTION_TEST_MISMATCH" }, { status: 409 });
 
+    let transcript = parsed.data.transcript?.trim() ?? "";
+    let transcriptionProvider = parsed.data.transcription_provider;
+    let transcriptionConfidence = parsed.data.transcription_confidence;
+    let durationMs = parsed.data.duration_ms;
+
+    if (!transcript && parsed.data.audio_url) {
+      const transcription = await transcribeAudioFromUrl({
+        audioUrl: parsed.data.audio_url,
+        language: parsed.data.transcription_language,
+        model: parsed.data.model,
+      });
+      transcript = transcription.text.trim();
+      transcriptionProvider = transcription.provider + ":" + transcription.model;
+      transcriptionConfidence = transcription.confidence ?? undefined;
+      if (durationMs == null && transcription.duration_seconds != null) {
+        durationMs = Math.round(transcription.duration_seconds * 1000);
+      }
+    }
+
     const audioEvaluation = evaluateAudioTranscript(
       {
         id: question.id,
         question_type: question.question_type,
         expected_answer: question.expected_answer,
       },
-      parsed.data,
+      {
+        ...parsed.data,
+        transcript,
+        transcription_provider: transcriptionProvider,
+        transcription_confidence: transcriptionConfidence,
+        duration_ms: durationMs,
+      },
     );
 
     const answerPayload = {
       mode: "audio_transcript",
-      text: parsed.data.transcript,
-      transcript: parsed.data.transcript,
+      text: transcript,
+      transcript,
       audio_url: parsed.data.audio_url ?? null,
-      duration_ms: parsed.data.duration_ms ?? null,
+      duration_ms: durationMs ?? null,
       mime_type: parsed.data.mime_type ?? null,
-      transcription_provider: parsed.data.transcription_provider ?? null,
-      transcription_confidence: parsed.data.transcription_confidence ?? null,
+      transcription_provider: transcriptionProvider ?? null,
+      transcription_confidence: transcriptionConfidence ?? null,
       transcription_language: parsed.data.transcription_language,
     };
 
