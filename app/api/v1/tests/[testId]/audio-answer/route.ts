@@ -11,7 +11,6 @@ const schema = z.object({
   duration_ms: z.number().int().positive().max(30 * 60 * 1000).optional(),
   mime_type: z.string().max(100).optional(),
   transcript: z.string().min(1).max(20000).optional(),
-  model: z.string().max(100).optional(),
   transcription_provider: z.string().max(100).optional(),
   transcription_confidence: z.number().min(0).max(1).optional(),
   transcription_language: z.string().max(20).default("ar"),
@@ -75,7 +74,6 @@ export async function POST(
       const transcription = await transcribeAudioFromUrl({
         audioUrl: parsed.data.audio_url,
         language: parsed.data.transcription_language,
-        model: parsed.data.model,
       });
       transcript = transcription.text.trim();
       transcriptionProvider = transcription.provider + ":" + transcription.model;
