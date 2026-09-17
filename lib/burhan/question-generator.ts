@@ -76,7 +76,7 @@ export async function generateMutashabihatQuestion(input: {
 
   const occurrencesRequired = input.occurrencesRequired ?? 2;
   const ayahsAfter = input.ayahsAfter ?? 1;
-  const result = await buildSimilarityFamilies({ anchor, threshold: input.threshold, limit: input.limit, persist: true });
+  const result = await buildSimilarityFamilies({ anchor, threshold: input.threshold, limit: input.limit, persist: true, juz: input.juz });
 
   const family = [...result.families]
     .filter((candidate) => candidate.members.length >= (occurrencesRequired === "all" ? 2 : occurrencesRequired))
