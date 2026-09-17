@@ -1,4 +1,5 @@
 import { validateAudioUrl } from "./audio-url";
+import type { MaddObservation, MaddTarget } from "./madd-acoustic-evaluator";
 
 export type PhonemeProviderResult = {
   provider: string;
@@ -10,6 +11,7 @@ export type PhonemeProviderResult = {
   issue_detected?: boolean;
   evidence?: Array<Record<string, unknown>>;
   summary?: Record<string, unknown>;
+  madd_observations?: MaddObservation[];
 };
 
 function providerUrl() {
@@ -30,6 +32,7 @@ export async function runPhonemeProvider(input: {
   audioUrl: string;
   referencePhonemes: string[];
   questionId: string;
+  maddTargets?: MaddTarget[];
 }): Promise<PhonemeProviderResult> {
   const url = providerUrl();
   validateAudioUrl(input.audioUrl);
@@ -45,6 +48,7 @@ export async function runPhonemeProvider(input: {
       audio_url: input.audioUrl,
       reference_phonemes: input.referencePhonemes,
       question_id: input.questionId,
+      madd_targets: input.maddTargets ?? [],
     }),
     cache: "no-store",
   });
@@ -80,6 +84,42 @@ export async function runPhonemeProvider(input: {
     throw new Error("Tajweed phoneme provider returned an invalid tajweed_score.");
   }
 
+  const maddObservations = Array.isArray(payload.madd_observations)
+    ? payload.madd_observations
+        .filter((item: unknown): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object",
+        )
+        .map((item) => ({
+          occurrence_id: String(item.occurrence_id ?? ""),
+          duration_ms: Number(item.duration_ms),
+          reference_harakah_ms:
+            item.reference_harakah_ms == null
+              ? undefined
+              : Number(item.reference_harakah_ms),
+          confidence: Number(item.confidence),
+          stop_detected:
+            typeof item.stop_detected === "boolean"
+              ? item.stop_detected
+              : undefined,
+          start_ms:
+            item.start_ms == null ? undefined : Number(item.start_ms),
+          end_ms:
+            item.end_ms == null ? undefined : Number(item.end_ms),
+          evidence:
+            item.evidence && typeof item.evidence === "object"
+              ? item.evidence
+              : undefined,
+        }))
+        .filter(
+          (item) =>
+            item.occurrence_id &&
+            Number.isFinite(item.duration_ms) &&
+            Number.isFinite(item.confidence) &&
+            item.confidence >= 0 &&
+            item.confidence <= 1,
+        )
+    : [];
+
   return {
     provider: typeof payload.provider === "string" ? payload.provider : "custom",
     model: typeof payload.model === "string" ? payload.model : "unknown",
@@ -99,5 +139,6 @@ export async function runPhonemeProvider(input: {
       payload.summary && typeof payload.summary === "object"
         ? payload.summary
         : {},
+    madd_observations: maddObservations,
   };
 }
