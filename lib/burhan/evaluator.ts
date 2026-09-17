@@ -260,12 +260,18 @@ export function evaluateQuestion(question: {
   const expected = question.expected_answer ?? {};
 
   if (question.question_type === "recite_range") {
-    const expectedAyahs = Array.isArray(expected.ayahs)
-      ? expected.ayahs.filter((ayah: any) => ayah?.text_ar).map((ayah: any) => ({
-          surah_id: Number(ayah.surah_id),
-          ayah_number: Number(ayah.ayah_number),
-          text_ar: ayah.text_ar,
-        }))
+    const expectedAyahs: Array<{
+      surah_id: number;
+      ayah_number: number;
+      text_ar: string;
+    }> = Array.isArray(expected.ayahs)
+      ? expected.ayahs
+          .filter((ayah: any) => ayah?.text_ar)
+          .map((ayah: any) => ({
+            surah_id: Number(ayah.surah_id),
+            ayah_number: Number(ayah.ayah_number),
+            text_ar: String(ayah.text_ar),
+          }))
       : [];
     const expectedText = expectedAyahs.map((ayah) => ayah.text_ar).join(" ");
     const answerText = normalizeAnswerText(answer);
