@@ -140,7 +140,7 @@ function detectMadd(
       add(out, word, nextWord, wordIndex, unit, following, "madd_muttasil", {
         cause: "hamza_same_word",
         reference_duration: "route_profile",
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -148,7 +148,7 @@ function detectMadd(
       add(out, word, nextWord, wordIndex, unit, nextUnits[0], "madd_munfasil", {
         cause: "hamza_next_word",
         reference_duration: "route_profile",
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -166,7 +166,7 @@ function detectMadd(
         cause: "original_sukun",
         reference_duration: "6_harakah",
         requires_acoustic_validation: true,
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -190,7 +190,7 @@ function detectMadd(
       cause: "no_secondary_cause_detected",
       reference_duration: "2_harakah",
       requires_acoustic_validation: true,
-    });
+    }, wordCharOffset, nextWordCharOffset);
   }
 
   const finalUnit = units.at(-1);
