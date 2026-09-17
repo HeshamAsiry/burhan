@@ -156,7 +156,7 @@ export function extractDeterministicTajweedOccurrences(
       }
     }
 
-    if (lastLetter === "ن" && hasSukunAfter(word, "ن") && nextLetter) {
+    if (lastLetter === "ن" && nextLetter) {
       const ruleCode = classifyNoonOrTanween(nextLetter);
       if (ruleCode) {
         addOccurrence(
@@ -186,7 +186,7 @@ export function extractDeterministicTajweedOccurrences(
       }
     }
 
-    if (lastLetter === "م" && hasSukunAfter(word, "م") && nextLetter) {
+    if (lastLetter === "م" && nextLetter) {
       const ruleCode =
         nextLetter === "م"
           ? "meem_idgham_shafawi"
