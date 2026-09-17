@@ -27,7 +27,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateReciteRangeQuestion(parsed.data);
+    const toEndpoint = (endpoint: typeof parsed.data.start) => {
+      if (endpoint.surah_id != null && endpoint.ayah_number != null) {
+        return {
+          surah_id: endpoint.surah_id,
+          ayah_number: endpoint.ayah_number,
+          anchor: endpoint.anchor,
+        };
+      }
+
+      if (endpoint.anchor) {
+        return {
+          surah_id: 1,
+          ayah_number: 1,
+          anchor: endpoint.anchor,
+        };
+      }
+
+      throw new Error("Invalid range endpoint.");
+    };
+
+    const result = await generateReciteRangeQuestion({
+      start: toEndpoint(parsed.data.start),
+      end: toEndpoint(parsed.data.end),
+    });
     return NextResponse.json(result);
   } catch (error) {
     console.error("Burhan recite-range generation failed", error);
