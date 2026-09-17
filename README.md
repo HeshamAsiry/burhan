@@ -36,6 +36,17 @@ See docs/teacher-review.md for the review policy and API endpoints.
 
 ## Current Tajweed map
 
-The Supabase project contains the core Tajweed rule catalog and a populated derived knowledge map. Madd now has dedicated detection logic for natural, badal, muttasil, munfasil, and kalimi lazim patterns, with conditional map entries for arid li-sukun, leen, and iwad. Acoustic duration measurement is intentionally a separate layer.
+The Supabase project contains the core Tajweed rule catalog and a populated derived knowledge map. Madd now has dedicated detection logic for natural, badal, muttasil, munfasil, and kalimi lazim patterns, with conditional map entries for arid li-sukun, leen, and iwad. Additional special Madd rules are cataloged for later contextual detection. Acoustic duration measurement is intentionally a separate layer.
 
-Server-side phoneme references are modeled in quran_phoneme_references. The table is intentionally empty until a suitable, licensed reference-phoneme source is selected.
+Server-side phoneme references are modeled in quran_phoneme_references. The table remains empty until a suitable, licensed reference-phoneme source is configured. A server-side builder is included as npm run map:phonemes.
+
+
+## Audio/Tajweed configuration
+
+For speech-to-text, configure OPENAI_API_KEY on the server.
+
+For a Quran phoneme endpoint, configure BURHAN_TAJWEED_PHONEME_PROVIDER=huggingface together with BURHAN_HF_PHONEME_ENDPOINT_URL and HF_TOKEN, or use the custom provider adapter.
+
+For generating the Quran phoneme reference map, configure BURHAN_PHONEMIZER_URL and optionally BURHAN_PHONEMIZER_TOKEN, BURHAN_PHONEMIZER_VERSION, and BURHAN_PHONEMIZER_SOURCE, then run npm run map:phonemes from a trusted server environment.
+
+Never expose service-role keys or provider tokens to browser clients.
