@@ -115,6 +115,9 @@ function buildOccurrence(
   expectedBehavior: Record<string, unknown>,
 ): MaddOccurrence {
   const contextText = nextWord ? word + " " + nextWord : word;
+  const triggerText = nextWord && nextUnit
+    ? word.slice(unit.start) + " " + nextWord.slice(0, nextUnit.end)
+    : word.slice(unit.start, unit.end);
 
   return {
     ruleCode,
@@ -122,7 +125,7 @@ function buildOccurrence(
     wordIndexEnd: nextWord ? wordIndex + 1 : wordIndex,
     charStart: unit.start,
     charEnd: nextUnit ? nextUnit.end : unit.end,
-    triggerText: word.slice(unit.start, nextUnit ? nextUnit.end : unit.end),
+    triggerText,
     contextText,
     expectedBehavior,
   };
