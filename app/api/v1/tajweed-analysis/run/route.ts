@@ -171,19 +171,32 @@ export async function POST(request: Request) {
       ),
     ].join(",");
 
-    const { data: maddOccurrences, error: maddError } = await db
-      .from("tajweed_occurrences")
-      .select(
-        "id,ayah_id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,rule:tajweed_rules!inner(code,name_ar,name_en,category)",
-      )
-      .in(
-        "ayah_id",
-        orderedAyahs.map((ayah) => ayah.id),
-      )
-      .like("rule.code", "madd_%")
-      .order("ayah_id", { ascending: true })
-      .order("word_index", { ascending: true })
-      .order("char_start", { ascending: true });
+    const profileCode = parsed.data.profile_code;
+
+    const { data: maddRules, error: maddRulesError } = await db
+      .from("tajweed_rules")
+      .select("id,code")
+      .like("code", "madd_%");
+
+    if (maddRulesError) throw new Error(maddRulesError.message);
+
+    const maddRuleIds = (maddRules ?? []).map((rule) => rule.id);
+
+    const { data: maddOccurrences, error: maddError } = maddRuleIds.length
+      ? await db
+          .from("tajweed_occurrences")
+          .select(
+            "id,ayah_id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,rule:tajweed_rules!inner(code,name_ar,name_en,category)",
+          )
+          .in(
+            "ayah_id",
+            orderedAyahs.map((ayah) => ayah.id),
+          )
+          .in("rule_id", maddRuleIds)
+          .order("ayah_id", { ascending: true })
+          .order("word_index", { ascending: true })
+          .order("char_start", { ascending: true })
+      : { data: [], error: null };
 
     if (maddError) throw new Error(maddError.message);
 
@@ -256,8 +269,7 @@ export async function POST(request: Request) {
 
     const issueDetected =
       provider.issue_detected ??
-      phonemeEvaluation.score < 95 ||
-      maddSummary.detected_issues > 0;
+      (phonemeEvaluation.score < 95 || maddSummary.detected_issues > 0);
 
     const maddForcesReview =
       maddSummary.needs_teacher_review > 0 ||
