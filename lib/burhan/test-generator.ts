@@ -2,10 +2,12 @@ import { getSupabaseAdmin } from "../supabase-admin";
 import { generateMutashabihatQuestion } from "./question-generator";
 import { generateAnchorRecallQuestion } from "./anchor-recall-generator";
 import { generateIdentifySurahQuestion } from "./identify-surah-generator";
+import { generateSurahMcqQuestion } from "./mcq-generator";
 import { generateReciteRangeQuestion } from "./recite-range-generator";
 import { buildTestBlueprint } from "./blueprint-engine";
 
 export type TestQuestionSpec =
+  | { type: "mcq"; anchor?: string; surah_id?: number; ayah_number?: number }
   | { type: "identify_surah"; anchor?: string; surah_id?: number; ayah_number?: number }
   | { type: "anchor_recall"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; juz_min?: number; juz_max?: number; include_surah?: boolean }
   | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
@@ -34,7 +36,13 @@ export async function generateTest(input: {
 
   const generated = [];
   for (const spec of specs) {
-    if (spec.type === "identify_surah") {
+    if (spec.type === "mcq") {
+      generated.push(await generateSurahMcqQuestion({
+        anchor: spec.anchor,
+        surahId: spec.surah_id,
+        ayahNumber: spec.ayah_number,
+      }));
+    } else if (spec.type === "identify_surah") {
       generated.push(await generateIdentifySurahQuestion({
         anchor: spec.anchor,
         surahId: spec.surah_id,
