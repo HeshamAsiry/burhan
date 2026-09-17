@@ -39,3 +39,13 @@ When automatic generation is persisted, the blueprint is stored in `test_bluepri
 ## Current limitation
 
 The blueprint engine currently uses deterministic Quran-text signals. It does not yet consider a student's previous exposure, mastery history, or adaptive review state. Those belong to the later evaluation/mastery layer.
+
+
+## Cumulative vs non-cumulative
+
+The seven levels are difficulty levels. Each level can be generated as either:
+
+- `non_cumulative`: candidate coverage is restricted to the requested Juz.
+- `cumulative`: candidate coverage includes the requested Juz and all preceding Juz.
+
+So the matrix is **7 levels × 2 coverage modes**. The `test_type` changes the coverage scope; it does not create a separate difficulty scale.
