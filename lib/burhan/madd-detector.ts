@@ -261,7 +261,7 @@ export function detectMaddOccurrences(
       continue;
     }
 
-    if (i === units.length - 2) {
+    if (!next && i === units.length - 2) {
       const finalUnit = units.at(-1);
       if (finalUnit && !hasMark(finalUnit, SUKUN) && finalUnit.marks.some(
         (mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === "ٍ" || mark === "ٌ"
@@ -304,7 +304,7 @@ export function detectMaddOccurrences(
   }
 
   const finalUnit = units.at(-1);
-  if (finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
+  if (!next && finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
     occurrences.push({
       ruleCode: "madd_iwad",
       wordIndex,
@@ -322,6 +322,7 @@ export function detectMaddOccurrences(
   }
 
   if (
+    !next &&
     finalUnit &&
     units.length >= 2 &&
     finalUnit.base !== "ا" &&
