@@ -114,7 +114,7 @@ export function compareRecitationByAyah(
   const extraPenalty = answer.length ? Math.min(1, expected.length / answer.length) : 0;
 
   let offset = 0;
-  return expectedWithTokens.map((ayah) => {
+  return expectedWithTokens.map((ayah: { surah_id: number; ayah_number: number; text_ar: string; tokens: string[] }) => {
     const start = offset;
     const end = offset + ayah.tokens.length;
     offset = end;
