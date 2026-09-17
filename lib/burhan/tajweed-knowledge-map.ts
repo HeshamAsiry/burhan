@@ -1,3 +1,5 @@
+import { detectMaddOccurrences } from "./madd-detector";
+
 const ARABIC_MARKS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/u;
 const TANWEEN = new Set(["ً", "ٍ", "ٌ"]);
 const SUN_LETTERS = new Set(["ت", "ث", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ل", "ن"]);
@@ -12,6 +14,8 @@ export type TajweedOccurrenceSeed = {
   ruleCode: string;
   wordIndex: number;
   wordIndexEnd: number;
+  charStart?: number;
+  charEnd?: number;
   triggerText: string;
   contextText: string;
   expectedBehavior: Record<string, unknown>;
@@ -200,6 +204,20 @@ export function extractDeterministicTajweedOccurrences(
           { source: "tanween", following_letter: nextLetter },
         );
       }
+    }
+
+    const maddOccurrences = detectMaddOccurrences(word, index, nextWord);
+    for (const madd of maddOccurrences) {
+      occurrences.push({
+        ruleCode: madd.ruleCode,
+        wordIndex: madd.wordIndex,
+        wordIndexEnd: madd.wordIndexEnd,
+        charStart: madd.charStart,
+        charEnd: madd.charEnd,
+        triggerText: madd.triggerText,
+        contextText: madd.contextText,
+        expectedBehavior: madd.expectedBehavior,
+      });
     }
 
     if (lastLetter === "م" && nextLetter) {
