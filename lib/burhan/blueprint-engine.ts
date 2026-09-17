@@ -5,6 +5,7 @@ export type BlueprintInput = {
   level: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   testType?: "non_cumulative" | "cumulative" | "custom";
   questionCount?: number;
+  progression?: "from_30_to_1" | "from_1_to_30";
 };
 
 export type BlueprintQuestionSpec =
@@ -23,16 +24,17 @@ const LEVELS = {
   7: { mutashabihatRatio: 0.9, rangeAyahs: 6, occurrences: 3 },
 } as const;
 
-async function getRangeCandidates(juz: number, cumulative: boolean) {
+async function getRangeCandidates(juz: number, cumulative: boolean, progression: "from_30_to_1" | "from_1_to_30") {
   const db = getSupabaseAdmin();
-  const query = db.from("ayahs").select("surah_id,ayah_number").order("surah_id").order("ayah_number");\n  const { data, error } = cumulative ? await query.lte("juz_number", juz) : await query.eq("juz_number", juz);
+  const query = db.from("ayahs").select("surah_id,ayah_number,juz_number").order("surah_id").order("ayah_number");
+  const { data, error } = cumulative\n    ? progression === "from_30_to_1"\n      ? await query.gte("juz_number", juz)\n      : await query.lte("juz_number", juz)\n    : await query.eq("juz_number", juz);
   if (error) throw new Error(error.message);
   return (data ?? []) as Array<{ surah_id: number; ayah_number: number }>;
 }
 
-async function getAnchorCandidates(juz: number, cumulative: boolean, limit = 80) {
+async function getAnchorCandidates(juz: number, cumulative: boolean, progression: "from_30_to_1" | "from_1_to_30", limit = 80) {
   const db = getSupabaseAdmin();
-  const { data, error } = await db.rpc("burhan_blueprint_anchor_candidates", { p_juz: juz, p_limit: limit, p_cumulative: cumulative });
+  const { data, error } = await db.rpc("burhan_blueprint_anchor_candidates", { p_juz: juz, p_limit: limit, p_cumulative: cumulative, p_progression: progression });
   if (error) throw new Error(error.message);
   return (data ?? []) as Candidate[];
 }
@@ -57,8 +59,10 @@ export async function buildTestBlueprint(input: BlueprintInput) {
   const level = LEVELS[input.level];
   const mutCount = Math.round(questionCount * level.mutashabihatRatio);
   const rangeCount = questionCount - mutCount;
-  const cumulative = input.testType === "cumulative";\n  const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz, cumulative), getAnchorCandidates(input.juz, cumulative)]);
-  if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in this Juz for the requested blueprint.");
+  const cumulative = input.testType === "cumulative";
+  const progression = input.progression ?? "from_30_to_1";
+  const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz, cumulative, progression), getAnchorCandidates(input.juz, cumulative, progression)]);
+  if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in the selected cumulative scope for the requested blueprint.");
   if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in this Juz: need ${mutCount}, found ${candidates.length}.`);
 
   const anchorSpecs: BlueprintQuestionSpec[] = [];
@@ -85,7 +89,10 @@ export async function buildTestBlueprint(input: BlueprintInput) {
       generator: "burhan-v1-independent-blueprint",
       mutashabihat_count: anchorSpecs.length, recite_range_count: ranges.length,
       mutashabihat_ratio: level.mutashabihatRatio, range_ayahs: level.rangeAyahs,
-      occurrences_target: level.occurrences,\n      cumulative,\n      coverage_scope: cumulative ? `juz_1_to_${input.juz}` : `juz_${input.juz}`,
+      occurrences_target: level.occurrences,
+      cumulative,
+      progression,
+      coverage_scope: cumulative\n        ? progression === "from_30_to_1" ? `juz_${input.juz}_to_30` : `juz_1_to_${input.juz}`\n        : `juz_${input.juz}`,
       note: "Independent heuristic inspired by the documented methodology; not a reproduction of any external question bank.",
     },
     questions,
