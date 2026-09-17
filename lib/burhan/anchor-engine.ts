@@ -22,6 +22,15 @@ type AnchorMatch = AyahRow & {
   anchor_end: number;
 };
 
+function chooseEvenly<T>(items: T[], count: number) {
+  if (count >= items.length) return [...items];
+  if (count <= 0) return [];
+  return Array.from(
+    { length: count },
+    (_, index) => items[Math.floor((index * items.length) / count)],
+  );
+}
+
 export async function findAnchorRecall(input: AnchorRecallInput) {
   const db = getSupabaseAdmin();
   const normalizedAnchor = normalizeArabic(input.anchor);
@@ -44,7 +53,10 @@ export async function findAnchorRecall(input: AnchorRecallInput) {
   const selected =
     input.occurrencesRequired === "all"
       ? allMatches
-      : chooseEvenly(allMatches, Math.min(input.occurrencesRequired, allMatches.length));
+      : chooseEvenly(
+          allMatches,
+          Math.min(input.occurrencesRequired, allMatches.length),
+        );
 
   const surahIds = [...new Set(selected.map((match) => match.surah_id))];
   const ayahByKey = new Map<string, AyahRow>();
