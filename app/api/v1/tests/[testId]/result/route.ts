@@ -6,8 +6,8 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ testId: string }> },
 ) {
-  const { params } = await Promise.resolve(context);
-  const parsed = z.string().uuid().safeParse(params.testId);
+  const { testId } = await context.params;
+  const parsed = z.string().uuid().safeParse(testId);
 
   if (!parsed.success) {
     return NextResponse.json({ error: "INVALID_TEST_ID" }, { status: 400 });
