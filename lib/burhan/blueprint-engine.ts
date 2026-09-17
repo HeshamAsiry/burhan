@@ -246,16 +246,18 @@ export async function buildTestBlueprint(input: BlueprintInput) {
     : input.juz;
 
   for (let index = 0; index < mutCount; index++) {
-    let candidate = anchorPools[index];
+    const firstCandidate = anchorPools[index];
+    if (!firstCandidate) continue;
 
-    if (!candidate) continue;
+    let candidate: Candidate = firstCandidate;
 
     if (usedAnchors.has(candidate.normalized_text)) {
-      candidate = anchorPools.find(
+      const replacement = anchorPools.find(
         (item) => !usedAnchors.has(item.normalized_text),
       );
 
-      if (!candidate) continue;
+      if (!replacement) continue;
+      candidate = replacement;
     }
 
     usedAnchors.add(candidate.normalized_text);
