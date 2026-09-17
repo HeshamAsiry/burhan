@@ -59,7 +59,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
   const rangeCount = questionCount - mutCount;
   const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz), getAnchorCandidates(input.juz)]);
   if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in this Juz for the requested blueprint.");
-  if (mutCount > 0 && !candidates.length) throw new Error("No repeated-anchor candidates were found in this Juz.");
+  if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in this Juz: need ${mutCount}, found ${candidates.length}.`);
 
   const anchorSpecs: BlueprintQuestionSpec[] = [];
   const usedAnchors = new Set<string>();
