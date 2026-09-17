@@ -12,7 +12,7 @@ Burhan provides a reusable engine for generating and evaluating structured Quran
 - Mutashabihat
 - Progressive difficulty levels 1–7
 - Cumulative and non-cumulative tests
-- Attempts, scoring, mastery and review
+- Attempts, text-answer scoring, mastery and review
 
 ## Data source
 The initial Quran text and structural metadata will be ingested from a verified source with its required attribution. Tanzil's Uthmani text is one candidate source; its terms require verbatim distribution, attribution, and no modification. See https://tanzil.net/docs/text_license.
