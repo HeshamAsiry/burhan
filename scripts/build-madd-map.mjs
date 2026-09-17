@@ -153,9 +153,11 @@ function detectMadd(word, wordIndex, nextWord = "") {
       ) {
         add(out, word, nextWord, wordIndex, unit, finalUnit, "madd_arid_lissukun", {
           condition: "waqf",
+          base_rule_at_wasl: "madd_asli",
           allowed_duration: "route_profile",
           requires_acoustic_validation: true,
         });
+        continue;
       }
     }
 
@@ -192,7 +194,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
     const beforePenultimate = units.at(-3);
 
     if (
-      finalUnit.marks.includes(FATHA) &&
+      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ") &&
       penultimate?.base === "و" &&
       hasMark(penultimate, SUKUN) &&
       hasMark(beforePenultimate, FATHA)
@@ -216,7 +218,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
     }
 
     if (
-      finalUnit.marks.includes(FATHA) &&
+      finalUnit.marks.some((mark) => mark === FATHA || mark === DAMMA || mark === KASRA || mark === FATHATAN || mark === "ٍ" || mark === "ٌ") &&
       penultimate?.base === "ي" &&
       hasMark(penultimate, SUKUN) &&
       hasMark(beforePenultimate, FATHA)
