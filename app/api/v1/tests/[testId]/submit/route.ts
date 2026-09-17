@@ -191,7 +191,7 @@ export async function POST(
 
     const { data: tajweedAnalyses, error: tajweedError } = await db
       .from("burhan_tajweed_analyses")
-      .select("id,question_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence,teacher_review:burhan_teacher_reviews(id,status,reviewer_external_id,notes,final_score,reviewed_at)")
+      .select("id,question_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence,teacher_review:burhan_teacher_reviews(id,status,reviewer_external_id,notes,final_score,reviewed_at),madd_measurements:burhan_madd_measurements(id,occurrence_id,profile_code,rule_code,observed_duration_ms,reference_harakah_ms,estimated_harakah,expected_harakah,deviation_percent,measurement_confidence,stop_detected,status,reasons,evidence)")
       .eq("attempt_id", attempt.id);
 
     if (tajweedError) throw new Error(tajweedError.message);
