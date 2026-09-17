@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../../../../lib/supabase-admin";
 import { decideTeacherReview } from "../../../../lib/burhan/teacher-review";
+import { comparePhonemes } from "../../../../lib/burhan/phoneme-evaluator";
 
 const schema = z.object({
   attempt_id: z.string().uuid(),
@@ -10,8 +11,11 @@ const schema = z.object({
   analysis_version: z.string().max(100).default("tajweed-v1"),
   model: z.string().max(150).optional(),
   pronunciation_score: z.number().min(0).max(100).optional(),
-  tajweed_score: z.number().min(0).max(100),
-  confidence: z.number().min(0).max(1),
+  tajweed_score: z.number().min(0).max(100).optional(),
+  confidence: z.number().min(0).max(1).default(0),
+  phoneme_confidence: z.number().min(0).max(1).optional(),
+  reference_phonemes: z.array(z.string().trim().min(1).max(30)).max(5000).optional(),
+  predicted_phonemes: z.array(z.string().trim().min(1).max(30)).max(5000).optional(),
   issue_detected: z.boolean().default(false),
   audio_quality: z.enum(["good", "unclear", "poor"]).default("good"),
   unresolved_items: z.number().int().min(0).max(1000).default(0),
@@ -91,9 +95,34 @@ export async function POST(request: Request) {
       audioAnswerId = audioAnswer?.id ?? null;
     }
 
+    const phonemeEvaluation =
+      parsed.data.reference_phonemes && parsed.data.predicted_phonemes
+        ? comparePhonemes(
+            parsed.data.reference_phonemes,
+            parsed.data.predicted_phonemes,
+          )
+        : null;
+
+    const computedConfidence =
+      parsed.data.phoneme_confidence ?? parsed.data.confidence;
+
+    const computedIssueDetected =
+      parsed.data.issue_detected ??
+      Boolean(phonemeEvaluation?.has_errors && phonemeEvaluation.score < 95);
+
+    const computedPronunciationScore =
+      parsed.data.pronunciation_score ??
+      phonemeEvaluation?.score;
+
+    const computedTajweedScore =
+      parsed.data.tajweed_score ??
+      parsed.data.pronunciation_score ??
+      phonemeEvaluation?.score ??
+      null;
+
     const review = decideTeacherReview({
-      confidence: parsed.data.confidence,
-      issueDetected: parsed.data.issue_detected,
+      confidence: computedConfidence,
+      issueDetected: computedIssueDetected,
       audioQuality: parsed.data.audio_quality,
       unresolvedItems: parsed.data.unresolved_items,
       conflictingSignals: parsed.data.conflicting_signals,
@@ -108,17 +137,44 @@ export async function POST(request: Request) {
           audio_answer_id: audioAnswerId,
           analysis_version: parsed.data.analysis_version,
           model: parsed.data.model ?? null,
-          pronunciation_score: parsed.data.pronunciation_score ?? null,
-          tajweed_score: parsed.data.tajweed_score,
-          confidence: parsed.data.confidence,
-          issue_detected: parsed.data.issue_detected,
+          pronunciation_score: computedPronunciationScore ?? null,
+          tajweed_score: computedTajweedScore,
+          confidence: computedConfidence,
+          issue_detected: computedIssueDetected,
           audio_quality: parsed.data.audio_quality,
           unresolved_items: parsed.data.unresolved_items,
           conflicting_signals: parsed.data.conflicting_signals,
           verdict_status: review.verdictStatus,
           review_reasons: review.reasons,
-          summary: parsed.data.summary,
-          evidence: parsed.data.evidence,
+          summary: {
+            ...parsed.data.summary,
+            ...(phonemeEvaluation
+              ? {
+                  phoneme_evaluation: {
+                    score: phonemeEvaluation.score,
+                    distance: phonemeEvaluation.distance,
+                    expected_count: phonemeEvaluation.expected_count,
+                    predicted_count: phonemeEvaluation.predicted_count,
+                    matched_count: phonemeEvaluation.matched_count,
+                    substitutions: phonemeEvaluation.substitutions,
+                    deletions: phonemeEvaluation.deletions,
+                    insertions: phonemeEvaluation.insertions,
+                  },
+                }
+              : {}),
+          },
+          evidence: [
+            ...parsed.data.evidence,
+            ...(phonemeEvaluation
+              ? phonemeEvaluation.operations
+                  .filter((operation) => operation.type !== "match")
+                  .slice(0, 200)
+                  .map((operation) => ({
+                    type: "phoneme_error",
+                    ...operation,
+                  }))
+              : []),
+          ],
           updated_at: new Date().toISOString(),
         },
         { onConflict: "attempt_id,question_id" },
