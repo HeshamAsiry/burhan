@@ -28,6 +28,7 @@ export type QuestionEvaluation = {
     answer_tokens?: number;
     missing_tokens?: number;
     missing_occurrences?: number;
+    extra_occurrences?: number;
     extra_tokens?: number;
     surah_correct?: boolean;
     details?: Array<Record<string, unknown>>;
@@ -198,7 +199,7 @@ export function evaluateQuestion(question: {
     const surahCorrect = !surahRequired || result.details
       .filter((detail) => Number(detail.expected_index ?? -1) >= 0)
       .every((detail) => detail.surahCorrect !== false);
-    const score = Number((result.score * (surahRequired && !surahCorrect ? 0.85 : 1)).toFixed(2));
+    const score = result.score;
 
     return {
       question_id: question.id,
