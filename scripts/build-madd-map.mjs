@@ -71,7 +71,18 @@ function isHamza(unit) {
   return Boolean(unit && HAMZA_BASES.has(unit.base));
 }
 
-function add(out, word, nextWord, wordIndex, unit, nextUnit, ruleCode, expectedBehavior) {
+function add(
+  out,
+  word,
+  nextWord,
+  wordIndex,
+  unit,
+  nextUnit,
+  ruleCode,
+  expectedBehavior,
+  wordCharOffset = 0,
+  nextWordCharOffset = wordCharOffset,
+) {
   const contextText = nextWord ? word + " " + nextWord : word;
   const triggerText = nextWord && nextUnit
     ? word.slice(unit.start) + " " + nextWord.slice(0, nextUnit.end)
@@ -81,8 +92,8 @@ function add(out, word, nextWord, wordIndex, unit, nextUnit, ruleCode, expectedB
     ayah_id: null,
     word_index: wordIndex,
     word_index_end: nextWord && nextUnit ? wordIndex + 1 : wordIndex,
-    char_start: unit.start,
-    char_end: nextUnit ? nextUnit.end : unit.end,
+    char_start: wordCharOffset + unit.start,
+    char_end: nextUnit ? nextWordCharOffset + nextUnit.end : wordCharOffset + unit.end,
     trigger_text: triggerText,
     context_text: contextText,
     expected_behavior: expectedBehavior,
@@ -91,7 +102,13 @@ function add(out, word, nextWord, wordIndex, unit, nextUnit, ruleCode, expectedB
   });
 }
 
-function detectMadd(word, wordIndex, nextWord = "") {
+function detectMadd(
+  word,
+  wordIndex,
+  nextWord = "",
+  wordCharOffset = 0,
+  nextWordCharOffset = 0,
+) {
   const units = parseUnits(word);
   const nextUnits = parseUnits(nextWord);
   const out = [];
@@ -105,7 +122,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
       add(out, word, nextWord, wordIndex, unit, undefined, "madd_badl", {
         cause: "preceding_hamza_embedded_in_alif_maddah",
         reference_duration: "route_profile",
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -115,7 +132,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
       add(out, word, nextWord, wordIndex, unit, undefined, "madd_badl", {
         cause: "preceding_hamza",
         reference_duration: "route_profile",
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -140,7 +157,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
         cause: "original_sukun_with_shaddah",
         reference_duration: "6_harakah",
         requires_acoustic_validation: true,
-      });
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
@@ -164,7 +181,7 @@ function detectMadd(word, wordIndex, nextWord = "") {
           base_rule_at_wasl: "madd_asli",
           allowed_duration: "route_profile",
           requires_acoustic_validation: true,
-        });
+        }, wordCharOffset, nextWordCharOffset);
         continue;
       }
     }
@@ -183,8 +200,8 @@ function detectMadd(word, wordIndex, nextWord = "") {
       ayah_id: null,
       word_index: wordIndex,
       word_index_end: wordIndex,
-      char_start: finalUnit.start,
-      char_end: finalUnit.end,
+      char_start: wordCharOffset + finalUnit.start,
+      char_end: wordCharOffset + finalUnit.end,
       trigger_text: word.slice(finalUnit.start, finalUnit.end),
       context_text: word,
       expected_behavior: {
@@ -211,8 +228,8 @@ function detectMadd(word, wordIndex, nextWord = "") {
         ayah_id: null,
         word_index: wordIndex,
         word_index_end: wordIndex,
-        char_start: penultimate.start,
-        char_end: penultimate.end,
+        char_start: wordCharOffset + penultimate.start,
+        char_end: wordCharOffset + penultimate.end,
         trigger_text: word.slice(penultimate.start, penultimate.end),
         context_text: word,
         expected_behavior: {
@@ -320,16 +337,28 @@ const rows = [];
 for (const ayah of ayahs) {
   const words = ayah.text_ar.split(/\s+/u).filter(Boolean);
 
+  let wordCharOffset = 0;
+
   for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
     const word = words[wordIndex];
     const nextWord = words[wordIndex + 1] ?? "";
+    const nextWordCharOffset =
+      nextWord ? wordCharOffset + word.length + 1 : wordCharOffset;
 
-    const detected = detectMadd(word, wordIndex, nextWord);
+    const detected = detectMadd(
+      word,
+      wordIndex,
+      nextWord,
+      wordCharOffset,
+      nextWordCharOffset,
+    );
 
     for (const occurrence of detected) {
       occurrence.ayah_id = ayah.id;
       rows.push(occurrence);
     }
+
+    wordCharOffset += word.length + (wordIndex < words.length - 1 ? 1 : 0);
   }
 }
 
