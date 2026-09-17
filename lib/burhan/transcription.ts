@@ -45,6 +45,10 @@ function validateAudioUrl(rawUrl: string) {
   return url;
 }
 
+function supportsLogprobs(model: string) {
+  return model === "gpt-4o-transcribe" || model === "gpt-4o-mini-transcribe" || model === "gpt-4o-mini-transcribe-2025-12-15";
+}
+
 function filenameFromUrl(url: URL, contentType: string | null) {
   const value = url.pathname.split("/").pop();
   if (value && value.includes(".")) return value;
@@ -98,10 +102,11 @@ export async function transcribeAudioFromUrl(input: {
   const contentType = response.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
   const form = new FormData();
   form.append("file", new Blob([buffer], { type: contentType }), filenameFromUrl(url, contentType));
-  form.append("model", input.model ?? process.env.BURHAN_STT_MODEL ?? DEFAULT_MODEL);
+  const model = input.model ?? process.env.BURHAN_STT_MODEL ?? DEFAULT_MODEL;
+  form.append("model", model);
   form.append("language", input.language ?? "ar");
   form.append("response_format", "json");
-  form.append("include[]", "logprobs");
+  if (supportsLogprobs(model)) form.append("include[]", "logprobs");
 
   const openaiResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -133,7 +138,7 @@ export async function transcribeAudioFromUrl(input: {
   return {
     text: typeof payload?.text === "string" ? payload.text : "",
     provider: "openai",
-    model: input.model ?? process.env.BURHAN_STT_MODEL ?? DEFAULT_MODEL,
+    model,
     confidence,
     duration_seconds: payload?.usage?.type === "duration" ? Number(payload.usage.seconds ?? 0) : null,
     usage: payload?.usage ?? null,
