@@ -20,9 +20,9 @@ Burhan provides a reusable engine for generating and evaluating structured Quran
 The canonical Quran text is sourced from Tanzil's Uthmani text under its terms of use. Burhan keeps the canonical Arabic text verbatim and uses normalized representations only for search/evaluation. See https://tanzil.net/docs/text_license.
 
 ## Status
-Core Quran data and knowledge-map layers are initialized in the Burhan Supabase project. The API includes question generation, cumulative/non-cumulative blueprints, text-answer evaluation, persisted attempts, per-ayah scoring, learner mastery/review scheduling, identify-surah and MCQ questions, audio transcription-backed recitation evaluation, and the first Tajweed teacher-review infrastructure.
+Core Quran data and knowledge-map layers are initialized in the Burhan Supabase project. The API includes question generation, cumulative/non-cumulative blueprints, text-answer evaluation, persisted attempts, per-ayah scoring, learner mastery/review scheduling, identify-surah and MCQ questions, audio transcription-backed recitation evaluation, a populated deterministic Tajweed knowledge map, phoneme alignment, and teacher-review infrastructure.
 
-The Tajweed layer is intentionally separated from speech-to-text. Its current foundation stores automated analysis, confidence, evidence, verdict status, and teacher decisions without pretending that transcript scoring alone measures pronunciation or Tajweed.
+The Tajweed layer is intentionally separated from speech-to-text. The current foundation stores expected rule occurrences, phoneme diagnostics, automated analysis, confidence, evidence, verdict status, and teacher decisions without pretending that transcript scoring alone measures pronunciation or Tajweed.
 
 ## Teacher review
 Automated Tajweed analysis can produce:
@@ -32,3 +32,10 @@ Automated Tajweed analysis can produce:
 - not assessed
 
 See docs/teacher-review.md for the review policy and API endpoints.
+
+
+## Current Tajweed map
+
+The Supabase project currently contains 15 Tajweed rule definitions and 33,049 derived occurrences across the Quran for the deterministic/planned knowledge map. Madd and detailed Raa rules remain planned for acoustic/contextual analysis.
+
+Server-side phoneme references are modeled in quran_phoneme_references. The table is intentionally empty until a suitable, licensed reference-phoneme source is selected.
