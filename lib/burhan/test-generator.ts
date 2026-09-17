@@ -1,10 +1,11 @@
 import { getSupabaseAdmin } from "../supabase-admin";
 import { generateMutashabihatQuestion } from "./question-generator";
+import { generateAnchorRecallQuestion } from "./anchor-recall-generator";
 import { generateReciteRangeQuestion } from "./recite-range-generator";
 import { buildTestBlueprint } from "./blueprint-engine";
 
 export type TestQuestionSpec =
-  | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
+  | { type: "anchor_recall"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; juz_min?: number; juz_max?: number; include_surah?: boolean }\n  | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } };
 
 export async function generateTest(input: {
@@ -30,7 +31,16 @@ export async function generateTest(input: {
 
   const generated = [];
   for (const spec of specs) {
-    if (spec.type === "mutashabihat") {
+    if (spec.type === "anchor_recall") {
+      generated.push(await generateAnchorRecallQuestion({
+        anchor: spec.anchor,
+        occurrencesRequired: spec.occurrences_required,
+        ayahsAfter: spec.ayahs_after,
+        juzMin: spec.juz_min,
+        juzMax: spec.juz_max,
+        includeSurah: spec.include_surah,
+      }));
+    } else if (spec.type === "mutashabihat") {
       generated.push(await generateMutashabihatQuestion({
         anchor: spec.anchor,
         occurrencesRequired: spec.occurrences_required,
