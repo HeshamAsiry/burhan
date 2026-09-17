@@ -56,9 +56,23 @@ export async function POST(
     if (questionsError) throw new Error(questionsError.message);
     if (!questions?.length) return NextResponse.json({ error: "TEST_HAS_NO_QUESTIONS" }, { status: 409 });
 
-    const submittedByQuestion = new Map(
-      parsed.data.answers.map((item) => [item.question_id, item.answer]),
-    );
+    const submittedByQuestion = new Map<string, unknown>();
+
+    if (parsed.data.attempt_id) {
+      const { data: existingAnswers, error: existingAnswersError } = await db
+        .from("test_answers")
+        .select("question_id,answer")
+        .eq("attempt_id", parsed.data.attempt_id);
+
+      if (existingAnswersError) throw new Error(existingAnswersError.message);
+      for (const item of existingAnswers ?? []) {
+        submittedByQuestion.set(item.question_id, item.answer);
+      }
+    }
+
+    for (const item of parsed.data.answers) {
+      submittedByQuestion.set(item.question_id, item.answer);
+    }
 
     const evaluations = questions.map((question) =>
       evaluateQuestion(
