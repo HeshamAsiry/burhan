@@ -23,16 +23,16 @@ const LEVELS = {
   7: { mutashabihatRatio: 0.9, rangeAyahs: 6, occurrences: 3 },
 } as const;
 
-async function getRangeCandidates(juz: number) {
+async function getRangeCandidates(juz: number, cumulative: boolean) {
   const db = getSupabaseAdmin();
-  const { data, error } = await db.from("ayahs").select("surah_id,ayah_number").eq("juz_number", juz).order("surah_id").order("ayah_number");
+  const { data, error } = await db.from("ayahs").select("surah_id,ayah_number").eq(cumulative ? "juz_number" : "juz_number", juz).order("surah_id").order("ayah_number");
   if (error) throw new Error(error.message);
   return (data ?? []) as Array<{ surah_id: number; ayah_number: number }>;
 }
 
-async function getAnchorCandidates(juz: number, limit = 80) {
+async function getAnchorCandidates(juz: number, cumulative: boolean, limit = 80) {
   const db = getSupabaseAdmin();
-  const { data, error } = await db.rpc("burhan_blueprint_anchor_candidates", { p_juz: juz, p_limit: limit });
+  const { data, error } = await db.rpc("burhan_blueprint_anchor_candidates", { p_juz: juz, p_limit: limit, p_cumulative: cumulative });
   if (error) throw new Error(error.message);
   return (data ?? []) as Candidate[];
 }
@@ -57,7 +57,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
   const level = LEVELS[input.level];
   const mutCount = Math.round(questionCount * level.mutashabihatRatio);
   const rangeCount = questionCount - mutCount;
-  const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz), getAnchorCandidates(input.juz)]);
+  const cumulative = input.testType === "cumulative";\n  const [ayahs, candidates] = await Promise.all([getRangeCandidates(input.juz, cumulative), getAnchorCandidates(input.juz, cumulative)]);
   if (ayahs.length < level.rangeAyahs && rangeCount > 0) throw new Error("Not enough ayahs in this Juz for the requested blueprint.");
   if (mutCount > 0 && candidates.length < mutCount) throw new Error(`Not enough unique repeated-anchor candidates in this Juz: need ${mutCount}, found ${candidates.length}.`);
 
@@ -85,7 +85,7 @@ export async function buildTestBlueprint(input: BlueprintInput) {
       generator: "burhan-v1-independent-blueprint",
       mutashabihat_count: anchorSpecs.length, recite_range_count: ranges.length,
       mutashabihat_ratio: level.mutashabihatRatio, range_ayahs: level.rangeAyahs,
-      occurrences_target: level.occurrences,
+      occurrences_target: level.occurrences,\n      cumulative,\n      coverage_scope: cumulative ? `juz_1_to_${input.juz}` : `juz_${input.juz}`,
       note: "Independent heuristic inspired by the documented methodology; not a reproduction of any external question bank.",
     },
     questions,
