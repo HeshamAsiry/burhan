@@ -15,6 +15,8 @@ The knowledge map identifies the location and cause of the madd:
 - Madd arid li-sukun (conditional on waqf)
 - Madd leen (conditional on waqf)
 - Madd iwad (conditional on waqf)
+- Madd tamkin (planned contextual rule)
+- Harfi natural madd (planned for the disjoint letter openings)
 
 Planned special cases:
 
