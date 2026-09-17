@@ -44,16 +44,31 @@ function getExpectedAyahs(question: Question, evaluation: QuestionEvaluation): A
     const details = Array.isArray(evaluation.feedback.details) ? evaluation.feedback.details : [];
     const occurrences = Array.isArray(expected.occurrences) ? expected.occurrences : [];
 
-    return occurrences
-      .map((occurrence: any, index: number) => {
-        const detail = details.find((item) => Number(item.expected_index ?? -1) === index);
-        return {
+    const targets: Array<{ surah_id: number; ayah_number: number; score: number }> = [];
+
+    for (let index = 0; index < occurrences.length; index++) {
+      const occurrence = occurrences[index];
+      const detail = details.find((item) => Number(item.expected_index ?? -1) === index);
+      const ayahScores = Array.isArray(detail?.ayahScores) ? detail.ayahScores : [];
+
+      if (ayahScores.length) {
+        for (const ayah of ayahScores) {
+          targets.push({
+            surah_id: Number(ayah.surah_id),
+            ayah_number: Number(ayah.ayah_number),
+            score: Number(ayah.score ?? detail?.score ?? 0),
+          });
+        }
+      } else {
+        targets.push({
           surah_id: Number(occurrence.surah_id),
           ayah_number: Number(occurrence.ayah_number),
           score: detail ? Number(detail.score ?? 0) : 0,
-        };
-      })
-      .filter((item) => Number.isFinite(item.surah_id) && Number.isFinite(item.ayah_number));
+        });
+      }
+    }
+
+    return targets.filter((item) => Number.isFinite(item.surah_id) && Number.isFinite(item.ayah_number));
   }
 
   return [];
