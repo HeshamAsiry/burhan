@@ -104,7 +104,7 @@ export function evaluateMaddObservation(
       occurrence_id: target.occurrence_id,
       rule_code: target.rule_code,
       observed_duration_ms: observation.duration_ms,
-      reference_harakah_ms: referenceMs,
+      reference_harakah_ms: validatedReferenceMs,
       estimated_harakah: null,
       expected_harakah: target.expected_harakah,
       deviation_percent: null,
@@ -133,7 +133,8 @@ export function evaluateMaddObservation(
     };
   }
 
-  const estimatedHarakah = observation.duration_ms / referenceMs;
+  const validatedReferenceMs = referenceMs;
+  const estimatedHarakah = observation.duration_ms / validatedReferenceMs;
   const expected = nearestExpected(estimatedHarakah, target.expected_harakah);
   const deviationPercent =
     Number((((estimatedHarakah - expected) / expected) * 100).toFixed(2));
