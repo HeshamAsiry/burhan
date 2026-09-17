@@ -33,7 +33,7 @@ export async function GET(
     const { data: tajweedAnalyses, error: tajweedError } = attemptIds.length
       ? await db
           .from("burhan_tajweed_analyses")
-          .select("id,attempt_id,question_id,audio_answer_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence,teacher_review:burhan_teacher_reviews(id,status,reviewer_external_id,notes,final_score,reviewed_at)")
+          .select("id,attempt_id,question_id,audio_answer_id,tajweed_score,pronunciation_score,confidence,issue_detected,audio_quality,verdict_status,review_reasons,summary,evidence,teacher_review:burhan_teacher_reviews(id,status,reviewer_external_id,notes,final_score,reviewed_at),madd_measurements:burhan_madd_measurements(id,occurrence_id,profile_code,rule_code,observed_duration_ms,reference_harakah_ms,estimated_harakah,expected_harakah,deviation_percent,measurement_confidence,stop_detected,status,reasons,evidence)")
           .in("attempt_id", attemptIds)
       : { data: [], error: null };
 
