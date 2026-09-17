@@ -25,10 +25,14 @@ function components(rows: AyahRow[], threshold: number) {
 function familyName(rows: AyahRow[]) { const lists=rows.map(r=>words(r.normalized_text)); const p:string[]=[]; for(let i=0;;i++){const t=lists[0]?.[i];if(!t||lists.some(x=>x[i]!==t))break;p.push(t);} return p.slice(0,5).join(" ")||"Similarity family"; }
 function difficulty(size:number,score:number){const sizeSignal=Math.min(3,Math.max(0,size-2));const sim=score>=.85?3:score>=.7?2:1;return Math.min(7,Math.max(1,sizeSignal+sim+1));}
 
-export async function buildSimilarityFamilies(input:{anchor:string;threshold?:number;limit?:number;persist?:boolean;juz?:number}){
+export async function buildSimilarityFamilies(input:{anchor:string;threshold?:number;limit?:number;persist?:boolean;juz?:number;juzMin?:number;juzMax?:number}){
   const db=getSupabaseAdmin(), normalizedAnchor=normalizeArabic(input.anchor); if(!normalizedAnchor) throw new Error("Anchor becomes empty after normalization.");
   const threshold=Math.max(.2,Math.min(input.threshold??DEFAULT_THRESHOLD,.95)), limit=Math.max(2,Math.min(input.limit??30,50));
-  const {data,error}=await db.rpc("burhan_find_anchor_ayahs",{p_anchor:normalizedAnchor,p_limit:limit,p_juz:input.juz??null}); if(error) throw new Error(error.message);
+  const rpcName = input.juzMin !== undefined || input.juzMax !== undefined ? "burhan_find_anchor_ayahs_scope" : "burhan_find_anchor_ayahs";
+  const rpcArgs = rpcName === "burhan_find_anchor_ayahs_scope"
+    ? { p_anchor: normalizedAnchor, p_limit: limit, p_juz_min: input.juzMin ?? null, p_juz_max: input.juzMax ?? null }
+    : { p_anchor: normalizedAnchor, p_limit: limit, p_juz: input.juz ?? null };
+  const {data,error}=await db.rpc(rpcName,rpcArgs); if(error) throw new Error(error.message);
   const rows=(data??[]) as AyahRow[], groups=components(rows,threshold);
   const families:SimilarityFamily[]=groups.map(group=>{
     const scores:number[]=[]; const members=group.map(row=>{let best=0,diff:string|null=null;for(const other of group){if(other.id===row.id)continue;const c=compare(row,other);scores.push(c.score);if(c.score>best){best=c.score;diff=c.differencePoint;}}return {...row,difference_point:diff,similarity_score:best};});
