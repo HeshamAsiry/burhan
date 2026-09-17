@@ -16,7 +16,7 @@ const schema = z.object({
   phoneme_confidence: z.number().min(0).max(1).optional(),
   reference_phonemes: z.array(z.string().trim().min(1).max(30)).max(5000).optional(),
   predicted_phonemes: z.array(z.string().trim().min(1).max(30)).max(5000).optional(),
-  issue_detected: z.boolean().default(false),
+  issue_detected: z.boolean().optional(),
   audio_quality: z.enum(["good", "unclear", "poor"]).default("good"),
   unresolved_items: z.number().int().min(0).max(1000).default(0),
   conflicting_signals: z.number().int().min(0).max(1000).default(0),
