@@ -11,24 +11,38 @@ const schema = z.object({
   audio_url: z.string().url(),
 });
 
-function collectExpectedAyahIds(value: unknown, output = new Set<string>()): string[] {
+function collectExpectedAyahRefs(
+  value: unknown,
+  output = new Map<string, { surah_id: number; ayah_number: number }>(),
+): Array<{ surah_id: number; ayah_number: number }> {
   if (Array.isArray(value)) {
-    for (const item of value) collectExpectedAyahIds(item, output);
-    return [...output];
+    for (const item of value) collectExpectedAyahRefs(item, output);
+    return [...output.values()];
   }
 
   if (!value || typeof value !== "object") return [...output];
 
   const object = value as Record<string, unknown>;
-  if (typeof object.ayah_id === "string" && z.string().uuid().safeParse(object.ayah_id).success) {
-    output.add(object.ayah_id);
+  if (
+    typeof object.surah_id === "number" &&
+    typeof object.ayah_number === "number" &&
+    Number.isInteger(object.surah_id) &&
+    Number.isInteger(object.ayah_number) &&
+    object.surah_id >= 1 &&
+    object.surah_id <= 114 &&
+    object.ayah_number >= 1
+  ) {
+    output.set(object.surah_id + ":" + object.ayah_number, {
+      surah_id: object.surah_id,
+      ayah_number: object.ayah_number,
+    });
   }
 
   for (const nested of Object.values(object)) {
-    collectExpectedAyahIds(nested, output);
+    collectExpectedAyahRefs(nested, output);
   }
 
-  return [...output];
+  return [...output.values()];
 }
 
 export async function POST(request: Request) {
@@ -69,31 +83,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "QUESTION_ATTEMPT_MISMATCH" }, { status: 409 });
     }
 
-    const expectedAyahIds = collectExpectedAyahIds(question.expected_answer);
+    const expectedAyahRefs = collectExpectedAyahRefs(question.expected_answer);
 
-    if (!expectedAyahIds.length) {
+    if (!expectedAyahRefs.length) {
       return NextResponse.json(
         { error: "QUESTION_HAS_NO_AYAH_REFERENCES" },
         { status: 422 },
       );
     }
 
-    const { data: ayahs, error: ayahsError } = await db
+    const surahIds = [...new Set(expectedAyahRefs.map((ref) => ref.surah_id))];
+
+    const { data: candidateAyahs, error: ayahsError } = await db
       .from("ayahs")
       .select("id,surah_id,ayah_number")
-      .in("id", expectedAyahIds);
+      .in("surah_id", surahIds);
 
     if (ayahsError) throw new Error(ayahsError.message);
-    if ((ayahs?.length ?? 0) !== new Set(expectedAyahIds).size) {
+
+    const expectedKeys = new Set(
+      expectedAyahRefs.map((ref) => ref.surah_id + ":" + ref.ayah_number),
+    );
+
+    const orderedAyahs = [...(candidateAyahs ?? [])]
+      .filter((ayah) => expectedKeys.has(ayah.surah_id + ":" + ayah.ayah_number))
+      .sort(
+        (a, b) => a.surah_id - b.surah_id || a.ayah_number - b.ayah_number,
+      );
+
+    if (orderedAyahs.length !== expectedKeys.size) {
       return NextResponse.json(
-        { error: "EXPECTED_AYAH_REFERENCE_NOT_FOUND" },
+        {
+          error: "EXPECTED_AYAH_REFERENCE_NOT_FOUND",
+          required_ayahs: expectedKeys.size,
+          resolved_ayahs: orderedAyahs.length,
+        },
         { status: 409 },
       );
     }
-
-    const orderedAyahs = [...(ayahs ?? [])].sort(
-      (a, b) => a.surah_id - b.surah_id || a.ayah_number - b.ayah_number,
-    );
 
     const { data: references, error: referencesError } = await db
       .from("quran_phoneme_references")
