@@ -18,4 +18,4 @@ Burhan provides a reusable engine for generating and evaluating structured Quran
 The initial Quran text and structural metadata will be ingested from a verified source with its required attribution. Tanzil's Uthmani text is one candidate source; its terms require verbatim distribution, attribution, and no modification. See https://tanzil.net/docs/text_license.
 
 ## Status
-Core database schema is initialized in the Burhan Supabase project. Data ingestion and the first question generator are next.
+Core Quran data and knowledge-map layers are initialized in the Burhan Supabase project. The API now includes question generation, cumulative/non-cumulative blueprints, text-answer evaluation, persisted attempts, and learner mastery/review scheduling.
