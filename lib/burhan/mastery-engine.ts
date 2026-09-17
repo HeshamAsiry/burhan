@@ -17,6 +17,18 @@ function getExpectedAyahs(question: Question, evaluation: QuestionEvaluation): A
   const expected = question.expected_answer ?? {};
 
   if (question.question_type === "recite_range") {
+    const scored = Array.isArray(evaluation.feedback.ayah_scores)
+      ? evaluation.feedback.ayah_scores
+      : [];
+
+    if (scored.length) {
+      return scored.map((ayah) => ({
+        surah_id: Number(ayah.surah_id),
+        ayah_number: Number(ayah.ayah_number),
+        score: Number(ayah.score),
+      }));
+    }
+
     return Array.isArray(expected.ayahs)
       ? expected.ayahs
           .filter((ayah: any) => ayah?.surah_id != null && ayah?.ayah_number != null)
