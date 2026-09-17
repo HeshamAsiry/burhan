@@ -15,7 +15,10 @@ export type McqQuestion = {
 };
 
 function shuffle<T>(items: T[]) {
-  return [...items].sort((a, b) => String(a).localeCompare(String(b)));
+  return items
+    .map((item) => ({ item, key: crypto.randomUUID() }))
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(({ item }) => item);
 }
 
 export async function generateSurahMcqQuestion(input: {
