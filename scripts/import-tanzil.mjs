@@ -1,6 +1,11 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
+const ROOT = process.cwd();
+const LOCAL_TEXT_PATH = path.join(ROOT, "data", "quran-uthmani.xml");
+const LOCAL_METADATA_PATH = path.join(ROOT, "data", "quran-data.xml");
 const TEXT_URL = process.env.TANZIL_TEXT_URL || "https://tanzil.net/pub/quran-uthmani.xml";
 const METADATA_URL = process.env.TANZIL_METADATA_URL || "https://tanzil.net/pub/quran-data.xml";
 const SOURCE_NAME = "Tanzil Quran Text - Uthmani";
@@ -17,6 +22,20 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+
+async function readLocalOrFetch(localPath, remoteUrl, label) {
+  try {
+    const content = await fs.readFile(localPath, "utf8");
+    console.log(`${label}: using local file ${path.relative(ROOT, localPath)}`);
+    return content;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    console.log(`${label}: local file not found; downloading from ${remoteUrl}`);
+    const response = await fetch(remoteUrl);
+    if (!response.ok) throw new Error(`${label} download failed: ${response.status}`);
+    return response.text();
+  }
+}
 
 function normalizeArabic(input) {
   return input
@@ -56,10 +75,7 @@ function parseTextXml(xml) {
     const ayahs = [];
     for (const ayaMatch of suraMatch[2].matchAll(/<aya\b([^>]*)>([\s\S]*?)<\/aya>/g)) {
       const attrs = parseAttributes(ayaMatch[1]);
-      ayahs.push({
-        number: Number(attrs.index),
-        text: ayaMatch[2],
-      });
+      ayahs.push({ number: Number(attrs.index), text: ayaMatch[2] });
     }
     surahs.push({ number: Number(suraAttrs.index), name: suraAttrs.name || "", ayahs });
   }
@@ -70,12 +86,7 @@ function parseTextXml(xml) {
 }
 
 function parseMetadata(xml) {
-  const result = {
-    surahs: new Map(),
-    juz: [],
-    pages: [],
-    quarters: [],
-  };
+  const result = { surahs: new Map(), juz: [], pages: [], quarters: [] };
   const surasBlock = xml.match(/<suras\b[^>]*>([\s\S]*?)<\/suras>/)?.[1] || "";
   for (const match of surasBlock.matchAll(/<sura\b([^\/]*)\/>/g)) {
     const a = parseAttributes(match[1]);
@@ -113,13 +124,12 @@ async function upsertBatches(table, rows, onConflict) {
   }
 }
 
-const [textResponse, metadataResponse] = await Promise.all([fetch(TEXT_URL), fetch(METADATA_URL)]);
-if (!textResponse.ok) throw new Error(`Tanzil text download failed: ${textResponse.status}`);
-if (!metadataResponse.ok) throw new Error(`Tanzil metadata download failed: ${metadataResponse.status}`);
-const textXml = await textResponse.text();
-const metadataXml = await metadataResponse.text();
-const checksum = crypto.createHash("sha256").update(textXml, "utf8").digest("hex");
+const [textXml, metadataXml] = await Promise.all([
+  readLocalOrFetch(LOCAL_TEXT_PATH, TEXT_URL, "Quran text"),
+  readLocalOrFetch(LOCAL_METADATA_PATH, METADATA_URL, "Quran metadata"),
+]);
 
+const checksum = crypto.createHash("sha256").update(textXml, "utf8").digest("hex");
 const surahs = parseTextXml(textXml);
 const metadata = parseMetadata(metadataXml);
 
