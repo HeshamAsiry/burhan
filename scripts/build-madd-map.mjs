@@ -195,23 +195,34 @@ function detectMadd(
 
   const finalUnit = units.at(-1);
 
-  if (!nextWord && finalUnit?.marks.includes(FATHATAN) && finalUnit.base !== "ة") {
-    out.push({
-      ayah_id: null,
-      word_index: wordIndex,
-      word_index_end: wordIndex,
-      char_start: wordCharOffset + finalUnit.start,
-      char_end: wordCharOffset + finalUnit.end,
-      trigger_text: word.slice(finalUnit.start, finalUnit.end),
-      context_text: word,
-      expected_behavior: {
-        condition: "waqf",
-        reference_duration: "2_harakah",
-        excluded_final_letter: "ta_marbuta",
-      },
-      source_version: SOURCE_VERSION,
-      _rule_code: "madd_iwad",
-    });
+  if (!nextWord) {
+    const iwadSource =
+      finalUnit?.marks.includes(FATHATAN)
+        ? finalUnit
+        : units.at(-2)?.marks.includes(FATHATAN)
+          ? units.at(-2)
+          : undefined;
+    const iwadFinalBase =
+      finalUnit?.base === "ا" ? units.at(-2)?.base : finalUnit?.base;
+
+    if (iwadSource && iwadFinalBase !== "ة") {
+      out.push({
+        ayah_id: null,
+        word_index: wordIndex,
+        word_index_end: wordIndex,
+        char_start: wordCharOffset + iwadSource.start,
+        char_end: wordCharOffset + (finalUnit?.end ?? iwadSource.end),
+        trigger_text: word.slice(iwadSource.start, finalUnit?.end ?? iwadSource.end),
+        context_text: word,
+        expected_behavior: {
+          condition: "waqf",
+          reference_duration: "2_harakah",
+          excluded_final_letter: "ta_marbuta",
+        },
+        source_version: SOURCE_VERSION,
+        _rule_code: "madd_iwad",
+      });
+    }
   }
 
   if (!nextWord && units.length >= 3 && finalUnit) {
