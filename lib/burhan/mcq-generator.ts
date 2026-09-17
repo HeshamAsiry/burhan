@@ -68,12 +68,9 @@ export async function generateSurahMcqQuestion(input: {
     .slice(0, 3);
 
   const options = shuffle([
-    { id: "correct", surah_id: Number(target.surah_id), surah_name_ar: targetSurahNamePlaceholder() },
-    ...distractors.map((item, index) => ({ id: 'd' + (index + 1), ...item })),
+    ...distractors.map((item, index) => ({ id: "d" + (index + 1), ...item })),
+    { id: "correct", surah_id: Number(target.surah_id), surah_name_ar: "السورة" },
   ]);
-
-  const targetOption = options.find((option) => option.surah_id === Number(target!.surah_id));
-  if (!targetOption) throw new Error("Failed to construct MCQ options.");
 
   const { data: targetSurah, error: targetSurahError } = await db
     .from("surahs")
@@ -103,6 +100,3 @@ export async function generateSurahMcqQuestion(input: {
   };
 }
 
-function targetSurahNamePlaceholder() {
-  return "السورة";
-}
