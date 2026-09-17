@@ -8,57 +8,82 @@ export type AnchorRecallInput = {
   juz?: number;
 };
 
+type AyahRow = {
+  id: string;
+  surah_id: number;
+  ayah_number: number;
+  text_ar: string;
+  normalized_text: string;
+  juz_number: number;
+};
+
 export async function findAnchorRecall(input: AnchorRecallInput) {
   const db = getSupabaseAdmin();
   const normalizedAnchor = normalizeArabic(input.anchor);
 
-  const { data: ayahs, error: ayahError } = await db
+  if (!normalizedAnchor) {
+    throw new Error("Anchor becomes empty after normalization.");
+  }
+
+  const { data: ayahs, error } = await db
     .from("ayahs")
     .select("id,surah_id,ayah_number,text_ar,normalized_text,juz_number")
     .order("surah_id", { ascending: true })
     .order("ayah_number", { ascending: true });
 
-  if (ayahError) throw new Error(ayahError.message);
+  if (error) throw new Error(error.message);
 
-  const matches = (ayahs ?? [])
-    .filter((ayah) => !input.juz || ayah.juz_number === input.juz)
-    .flatMap((ayah) => {
-      const text = ayah.normalized_text;
-      const found = [];
-      let from = 0;
-      while (true) {
-        const index = text.indexOf(normalizedAnchor, from);
-        if (index === -1) break;
-        found.push({ ayah, start: index, end: index + normalizedAnchor.length });
-        from = index + Math.max(normalizedAnchor.length, 1);
-      }
-      return found;
-    });
+  const filteredAyahs = ((ayahs ?? []) as AyahRow[]).filter(
+    (ayah) => !input.juz || ayah.juz_number === input.juz,
+  );
 
-  const selected = input.occurrencesRequired === "all"
-    ? matches
-    : matches.slice(0, input.occurrencesRequired);
+  const matches = filteredAyahs.flatMap((ayah) => {
+    const text = ayah.normalized_text ?? "";
+    const found: Array<{
+      ayah: AyahRow;
+      normalizedStart: number;
+      normalizedEnd: number;
+    }> = [];
 
-  const occurrenceResults = [];
-  for (const match of selected) {
-    const { data: following, error } = await db
-      .from("ayahs")
-      .select("id,surah_id,ayah_number,text_ar")
-      .eq("surah_id", match.ayah.surah_id)
-      .gte("ayah_number", match.ayah.ayah_number)
-      .lte("ayah_number", match.ayah.ayah_number + input.ayahsAfter)
-      .order("ayah_number", { ascending: true });
+    let from = 0;
+    while (from < text.length) {
+      const index = text.indexOf(normalizedAnchor, from);
+      if (index === -1) break;
 
-    if (error) throw new Error(error.message);
+      found.push({
+        ayah,
+        normalizedStart: index,
+        normalizedEnd: index + normalizedAnchor.length,
+      });
 
-    occurrenceResults.push({
+      from = index + Math.max(normalizedAnchor.length, 1);
+    }
+
+    return found;
+  });
+
+  const selected =
+    input.occurrencesRequired === "all"
+      ? matches
+      : matches.slice(0, input.occurrencesRequired);
+
+  const ayahByKey = new Map(
+    filteredAyahs.map((ayah) => [`${ayah.surah_id}:${ayah.ayah_number}`, ayah]),
+  );
+
+  const occurrenceResults = selected.map((match) => {
+    const following = Array.from({ length: input.ayahsAfter + 1 }, (_, offset) =>
+      ayahByKey.get(`${match.ayah.surah_id}:${match.ayah.ayah_number + offset}`),
+    ).filter(Boolean);
+
+    return {
       surah_id: match.ayah.surah_id,
       ayah_number: match.ayah.ayah_number,
-      anchor_start: match.start,
-      anchor_end: match.end,
-      ayahs: following ?? [],
-    });
-  }
+      normalized_anchor_start: match.normalizedStart,
+      normalized_anchor_end: match.normalizedEnd,
+      ayahs: following,
+    };
+  });
 
   return {
     anchor: input.anchor,
