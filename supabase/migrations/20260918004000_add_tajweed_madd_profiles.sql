@@ -35,3 +35,7 @@ on conflict (profile_code, rule_code) do update set
   measurement_mode = excluded.measurement_mode,
   notes = excluded.notes,
   updated_at = now();
+
+
+create index if not exists idx_tajweed_madd_profiles_rule_code
+  on public.tajweed_madd_profiles (rule_code);
