@@ -26,7 +26,8 @@ export type QuestionEvaluation = {
     matched_tokens?: number;
     expected_tokens?: number;
     answer_tokens?: number;
-    missing_tokens?: number;\n    missing_occurrences?: number;
+    missing_tokens?: number;
+    missing_occurrences?: number;
     extra_tokens?: number;
     surah_correct?: boolean;
     details?: Array<Record<string, unknown>>;
@@ -105,24 +106,30 @@ function normalizeAnswerText(answer: unknown) {
   return "";
 }
 
-function scoreOccurrence(expected: any, supplied: any) {
+function scoreOccurrence(expected: any, supplied: any, requireSurah: boolean) {
   const expectedText = expectedAyahText(expected);
   const answerText = normalizeAnswerText(supplied);
   const comparison = compareRecitation(expectedText, answerText);
 
   let surahCorrect = true;
-  if (expected.surah_id != null && supplied?.surah_id != null) {
-    surahCorrect = Number(supplied.surah_id) === Number(expected.surah_id);
+  if (requireSurah) {
+    if (expected.surah_id != null && supplied?.surah_id != null) {
+      surahCorrect = Number(supplied.surah_id) === Number(expected.surah_id);
+    } else if (expected.surah_name && typeof supplied?.surah_name === "string") {
+      surahCorrect = normalizeForEvaluation(supplied.surah_name) === normalizeForEvaluation(expected.surah_name);
+    } else {
+      surahCorrect = false;
+    }
   }
 
-  const adjustedScore = expected.surah_id != null && supplied?.surah_id != null && !surahCorrect
+  const adjustedScore = requireSurah && !surahCorrect
     ? comparison.score * 0.85
     : comparison.score;
 
   return { ...comparison, score: Number(adjustedScore.toFixed(2)), surahCorrect };
 }
 
-function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: any[]) {
+function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: any[], requireSurah: boolean) {
   const used = new Set<number>();
   const details: Array<Record<string, unknown>> = [];
 
@@ -132,7 +139,7 @@ function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: 
 
     for (let i = 0; i < expectedOccurrences.length; i++) {
       if (used.has(i)) continue;
-      const candidate = scoreOccurrence(expectedOccurrences[i], supplied);
+      const candidate = scoreOccurrence(expectedOccurrences[i], supplied, requireSurah);
       if (candidate.score > best.score) {
         best = candidate;
         bestIndex = i;
@@ -143,13 +150,17 @@ function evaluateOccurrenceSet(expectedOccurrences: any[], suppliedOccurrences: 
     details.push({ expected_index: bestIndex, ...best });
   }
 
-  const answeredScores = details.map((detail) => Number(detail.score ?? 0));
+  const answeredScores = details
+    .filter((detail) => Number(detail.expected_index ?? -1) >= 0)
+    .map((detail) => Number(detail.score ?? 0));
   const missing = Math.max(0, expectedOccurrences.length - used.size);
-  const score = expectedOccurrences.length
-    ? Number(((answeredScores.reduce((sum, value) => sum + value, 0) / expectedOccurrences.length) * 0.9).toFixed(2))
+  const extra = Math.max(0, suppliedOccurrences.length - used.size);
+  const baseScore = expectedOccurrences.length
+    ? answeredScores.reduce((sum, value) => sum + value, 0) / expectedOccurrences.length
     : 0;
+  const score = Number(Math.max(0, baseScore - Math.min(20, extra * 5)).toFixed(2));
 
-  return { score, answered: used.size, missing, details };
+  return { score, answered: used.size, missing, extra, details };
 }
 
 export function evaluateQuestion(question: {
@@ -182,10 +193,11 @@ export function evaluateQuestion(question: {
         ? [{ text: normalizeAnswerText(answer), surah_id: answer?.surah_id }]
         : [];
 
-    const result = evaluateOccurrenceSet(expectedOccurrences, suppliedOccurrences);
-
     const surahRequired = Boolean(expected.include_surah);
-    const surahCorrect = !surahRequired || result.details.every((detail) => detail.surahCorrect !== false);
+    const result = evaluateOccurrenceSet(expectedOccurrences, suppliedOccurrences, surahRequired);
+    const surahCorrect = !surahRequired || result.details
+      .filter((detail) => Number(detail.expected_index ?? -1) >= 0)
+      .every((detail) => detail.surahCorrect !== false);
     const score = Number((result.score * (surahRequired && !surahCorrect ? 0.85 : 1)).toFixed(2));
 
     return {
@@ -197,6 +209,7 @@ export function evaluateQuestion(question: {
         expected_occurrences: expectedOccurrences.length,
         answered_occurrences: result.answered,
         missing_occurrences: result.missing,
+        extra_occurrences: result.extra,
         surah_correct: surahCorrect,
         details: result.details,
       },
