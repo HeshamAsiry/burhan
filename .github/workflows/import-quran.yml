@@ -7,7 +7,6 @@ on:
       - "data/quran-uthmani.xml"
       - "data/quran-data.xml"
       - "scripts/import-tanzil.mjs"
-      - "package.json"
 
 jobs:
   import-quran:
