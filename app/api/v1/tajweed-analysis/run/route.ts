@@ -10,6 +10,11 @@ import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
 import { runMaddAcousticProvider } from "../../../../../lib/burhan/madd-acoustic-provider";
 import { mapCharRangeToPhonemeSpan } from "../../../../../lib/burhan/phoneme-reference-map";
+import {
+  buildPhonemeErrorEvidence,
+  buildPhonemeReferenceSegments,
+  summarizePhonemeErrorsByAyah,
+} from "../../../../../lib/burhan/phoneme-evidence";
 
 const schema = z.object({
   attempt_id: z.string().uuid(),
@@ -121,11 +126,18 @@ export async function POST(request: Request) {
     const expectedKeys = new Set(
       expectedAyahRefs.map((ref) => ref.surah_id + ":" + ref.ayah_number),
     );
+    const candidateByKey = new Map(
+      (candidateAyahs ?? []).map((ayah) => [
+        ayah.surah_id + ":" + ayah.ayah_number,
+        ayah,
+      ]),
+    );
 
-    const orderedAyahs = [...(candidateAyahs ?? [])]
-      .filter((ayah) => expectedKeys.has(ayah.surah_id + ":" + ayah.ayah_number))
-      .sort(
-        (a, b) => a.surah_id - b.surah_id || a.ayah_number - b.ayah_number,
+    const orderedAyahs = expectedAyahRefs
+      .map((ref) => candidateByKey.get(ref.surah_id + ":" + ref.ayah_number))
+      .filter(
+        (ayah): ayah is (typeof candidateAyahs extends Array<infer Item> ? Item : never) =>
+          Boolean(ayah),
       );
 
     if (orderedAyahs.length !== expectedKeys.size) {
@@ -189,32 +201,24 @@ export async function POST(request: Request) {
 
     const profileCode = parsed.data.profile_code;
 
-    const { data: maddRules, error: maddRulesError } = await db
-      .from("tajweed_rules")
-      .select("id,code")
-      .like("code", "madd_%");
+    const { data: tajweedOccurrences, error: tajweedError } = await db
+      .from("tajweed_occurrences")
+      .select(
+        "id,ayah_id,rule_id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,rule:tajweed_rules!inner(code,name_ar,name_en,category)",
+      )
+      .in(
+        "ayah_id",
+        orderedAyahs.map((ayah) => ayah.id),
+      )
+      .order("ayah_id", { ascending: true })
+      .order("word_index", { ascending: true })
+      .order("char_start", { ascending: true });
 
-    if (maddRulesError) throw new Error(maddRulesError.message);
+    if (tajweedError) throw new Error(tajweedError.message);
 
-    const maddRuleIds = (maddRules ?? []).map((rule) => rule.id);
-
-    const { data: maddOccurrences, error: maddError } = maddRuleIds.length
-      ? await db
-          .from("tajweed_occurrences")
-          .select(
-            "id,ayah_id,word_index,word_index_end,char_start,char_end,trigger_text,context_text,expected_behavior,rule:tajweed_rules!inner(code,name_ar,name_en,category)",
-          )
-          .in(
-            "ayah_id",
-            orderedAyahs.map((ayah) => ayah.id),
-          )
-          .in("rule_id", maddRuleIds)
-          .order("ayah_id", { ascending: true })
-          .order("word_index", { ascending: true })
-          .order("char_start", { ascending: true })
-      : { data: [], error: null };
-
-    if (maddError) throw new Error(maddError.message);
+    const maddOccurrences = (tajweedOccurrences ?? []).filter(
+      (item: any) => typeof item.rule?.code === "string" && item.rule.code.startsWith("madd_"),
+    );
 
     const maddRuleCodes = [
       ...new Set(
@@ -288,6 +292,30 @@ export async function POST(request: Request) {
     const phonemeEvaluation = comparePhonemes(
       referencePhonemes,
       provider.predicted_phonemes,
+    );
+
+    const referenceSegments = buildPhonemeReferenceSegments({
+      orderedAyahs,
+      referenceByAyah: referenceByAyah as Map<string, any>,
+    });
+
+    const phonemeErrorEvidence = buildPhonemeErrorEvidence({
+      operations: phonemeEvaluation.operations,
+      segments: referenceSegments,
+      tajweedOccurrences: (tajweedOccurrences ?? []).map((item: any) => ({
+        occurrence_id: String(item.id),
+        ayah_id: String(item.ayah_id),
+        rule_code: String(item.rule?.code ?? ""),
+        char_start: item.char_start == null ? null : Number(item.char_start),
+        char_end: item.char_end == null ? null : Number(item.char_end),
+        word_index: item.word_index == null ? null : Number(item.word_index),
+        word_index_end:
+          item.word_index_end == null ? null : Number(item.word_index_end),
+      })),
+    });
+
+    const phonemeErrorsByAyah = summarizePhonemeErrorsByAyah(
+      phonemeErrorEvidence,
     );
 
     const hasDedicatedMaddProvider =
@@ -424,10 +452,12 @@ export async function POST(request: Request) {
               substitutions: phonemeEvaluation.substitutions,
               deletions: phonemeEvaluation.deletions,
               insertions: phonemeEvaluation.insertions,
+              errors_by_ayah: phonemeErrorsByAyah,
             },
           },
           evidence: [
             ...(provider.evidence ?? []),
+            ...phonemeErrorEvidence.slice(0, 200),
             ...maddMeasurements
               .filter((item) => item.status !== "verified")
               .map((item) => ({
