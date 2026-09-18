@@ -18,7 +18,8 @@
     "check:madd-phoneme-alignment": "node scripts/check-madd-phoneme-alignment.mjs",
     "check:madd-phoneme-reference-map": "node scripts/check-madd-phoneme-reference-map.mjs",
     "check:madd-evaluator": "node scripts/check-madd-evaluator.mjs",
-    "check:phoneme-timing-quality": "node scripts/check-phoneme-timing-quality.mjs"
+    "check:phoneme-timing-quality": "node scripts/check-phoneme-timing-quality.mjs",
+    "check:provider-fetch": "node scripts/check-provider-fetch.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
