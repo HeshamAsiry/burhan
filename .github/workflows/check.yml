@@ -18,6 +18,7 @@ jobs:
       - run: npm run check:madd
       - run: npm run check:madd-phoneme-alignment
       - run: npm run check:madd-phoneme-reference-map
+      - run: npm run check:madd-evaluator
       - run: npm run check:phoneme-evidence
       - run: npm run check:phoneme-provider-contract
       - run: npm run build
