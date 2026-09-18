@@ -3,6 +3,10 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "../../../../../lib/supabase-admin";
 import { comparePhonemes } from "../../../../../lib/burhan/phoneme-evaluator";
 import {
+  canonicalizePhonemeSequence,
+  countUnknownPhonemes,
+} from "../../../../../lib/burhan/phoneme-scheme";
+import {
   evaluateMaddObservations,
   summarizeMaddMeasurements,
 } from "../../../../../lib/burhan/madd-acoustic-evaluator";
@@ -290,9 +294,26 @@ export async function POST(request: Request) {
       maddTargets,
     });
 
-    const phonemeEvaluation = comparePhonemes(
-      referencePhonemes,
+    const canonicalReferencePhonemes = canonicalizePhonemeSequence(referencePhonemes);
+    const canonicalPredictedPhonemes = canonicalizePhonemeSequence(
       provider.predicted_phonemes,
+    );
+    const unknownPredictedPhonemes = countUnknownPhonemes(
+      provider.predicted_phonemes,
+    );
+
+    if (
+      canonicalReferencePhonemes.length !== referencePhonemes.length ||
+      canonicalPredictedPhonemes.length !== provider.predicted_phonemes.length
+    ) {
+      throw new Error(
+        "Unsupported phoneme vocabulary encountered while normalizing provider output.",
+      );
+    }
+
+    const phonemeEvaluation = comparePhonemes(
+      canonicalReferencePhonemes,
+      canonicalPredictedPhonemes,
     );
 
     const referenceSegments = buildPhonemeReferenceSegments({
@@ -373,8 +394,12 @@ export async function POST(request: Request) {
       provider.issue_detected ??
       (phonemeEvaluation.score < 95 || maddSummary.detected_issues > 0);
 
+    const effectiveConfidence = Number(
+      Math.min(provider.confidence, phonemeEvaluation.score / 100).toFixed(4),
+    );
+
     const review = decideTeacherReview({
-      confidence: provider.confidence,
+      confidence: effectiveConfidence,
       issueDetected,
       audioQuality: provider.audio_quality ?? "good",
       unresolvedItems:
@@ -405,7 +430,7 @@ export async function POST(request: Request) {
           question_id: question.id,
           audio_url: parsed.data.audio_url,
           transcription_provider: "phoneme-provider:" + provider.provider + ":" + provider.model,
-          transcription_confidence: provider.confidence,
+          transcription_confidence: effectiveConfidence,
           evaluation: {
             mode: "phoneme_analysis",
             phoneme_evaluation: phonemeEvaluation,
@@ -435,7 +460,7 @@ export async function POST(request: Request) {
           model: provider.provider + ":" + provider.model,
           pronunciation_score: phonemeEvaluation.score,
           tajweed_score: provider.tajweed_score ?? null,
-          confidence: provider.confidence,
+          confidence: effectiveConfidence,
           issue_detected: issueDetected,
           audio_quality: provider.audio_quality ?? "good",
           unresolved_items:
@@ -483,6 +508,9 @@ export async function POST(request: Request) {
             pronunciation: {
               score: phonemeEvaluation.score,
               phoneme_timing_count: provider.phoneme_timings.length,
+              provider_confidence: provider.confidence,
+              effective_confidence: effectiveConfidence,
+              unknown_predicted_phonemes: unknownPredictedPhonemes,
               distance: phonemeEvaluation.distance,
               matched_count: phonemeEvaluation.matched_count,
               substitutions: phonemeEvaluation.substitutions,
@@ -571,7 +599,7 @@ export async function POST(request: Request) {
       provider: {
         name: provider.provider,
         model: provider.model,
-        confidence: provider.confidence,
+        confidence: effectiveConfidence,
       },
       madd_provider: dedicatedMaddProvider
         ? {
