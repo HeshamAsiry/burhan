@@ -76,14 +76,44 @@ def fetch_all_ayahs():
 
 
 def locate_exact(source, needle, start, reference):
-    position = source.find(needle, start)
+    """
+    Align a phonemizer mapping against canonical Qur'anic text.
 
-    if position < 0:
+    The phonemizer intentionally omits Arabic combining marks from many
+    mapping chunks, while the canonical text preserves them. Match the
+    semantic characters in order and skip intervening combining marks that
+    are not present in the mapping chunk.
+    """
+    source_index = start
+    match_start = None
+
+    for expected in needle:
+        while (
+            source_index < len(source)
+            and source[source_index] != expected
+            and __import__("unicodedata").category(source[source_index]) == "Mn"
+        ):
+            source_index += 1
+
+        if source_index >= len(source) or source[source_index] != expected:
+            raise RuntimeError(
+                "Could not align mapping "
+                + repr(needle)
+                + " in canonical text for "
+                + reference
+            )
+
+        if match_start is None:
+            match_start = source_index
+
+        source_index += 1
+
+    if match_start is None:
         raise RuntimeError(
-            "Could not align mapping " + repr(needle) + " in canonical text for " + reference
+            "Empty mapping cannot be aligned for " + reference
         )
 
-    return position
+    return match_start
 
 
 def build_letter_phoneme_mappings(result, canonical_text, reference):
