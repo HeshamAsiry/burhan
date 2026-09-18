@@ -82,7 +82,7 @@ globalThis.__BurhanAudioStorage = storage;
 let moduleSource = transpiled
   .replace('require("next/server")', stubs.next)
   .replace('require("zod")', stubs.zod)
-  .replace('require("../../../../lib/supabase-admin")', stubs.supabase);
+  .replace('require("../../../../../lib/supabase-admin")', stubs.supabase);
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "burhan-audio-upload-"));
 const modulePath = path.join(tempDir, "route.cjs");
