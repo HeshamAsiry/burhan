@@ -98,9 +98,11 @@ function add(
     word_index: wordIndex,
     word_index_end: nextUnitIsNextWord ? wordIndex + 1 : wordIndex,
     char_start: wordCharOffset + unit.start,
-    char_end: nextUnitIsNextWord
-      ? nextWordCharOffset + nextUnit.end
-      : wordCharOffset + nextUnit.end,
+    char_end: nextUnit
+      ? nextUnitIsNextWord
+        ? nextWordCharOffset + nextUnit.end
+        : wordCharOffset + nextUnit.end
+      : wordCharOffset + unit.end,
     trigger_text: triggerText,
     context_text: contextText,
     expected_behavior: expectedBehavior,
@@ -345,11 +347,6 @@ if (ayahs.length !== 6236) {
   throw new Error(`Expected 6236 ayahs, got ${ayahs.length}`);
 }
 
-await supabase
-  .from("tajweed_occurrences")
-  .delete()
-  .eq("source_version", SOURCE_VERSION);
-
 const rows = [];
 
 for (const ayah of ayahs) {
@@ -377,6 +374,15 @@ for (const ayah of ayahs) {
     }
   }
 }
+
+if (!rows.length) {
+  throw new Error("No Madd occurrences were generated.");
+}
+
+await supabase
+  .from("tajweed_occurrences")
+  .delete()
+  .eq("source_version", SOURCE_VERSION);
 
 await insertBatches(rows);
 
