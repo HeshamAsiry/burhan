@@ -88,10 +88,21 @@ def phonemize(phonemizer, ayah):
     if not phonemes:
         raise RuntimeError("Empty phoneme reference for " + reference)
 
+    letter_mappings = [
+        {"chars": chars, "phonemes": phoneme_list}
+        for chars, phoneme_list in result.letter_phoneme_mappings().to_list()
+    ]
+    tajweed_mappings = json.loads(result.tajweed_mappings().to_json())
+
+    if not letter_mappings:
+        raise RuntimeError("Empty letter/phoneme mapping for " + reference)
+
     return {
         "ayah_id": ayah["id"],
         "phoneme_version": PHONEMIZER_VERSION,
         "phonemes": phonemes,
+        "letter_phoneme_mappings": letter_mappings,
+        "tajweed_mappings": tajweed_mappings,
         "source": PHONEMIZER_SOURCE,
     }
 
