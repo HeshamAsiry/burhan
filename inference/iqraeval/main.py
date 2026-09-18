@@ -111,9 +111,6 @@ def ensure_model() -> tuple[Any, Any]:
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model.to(device)
-        if device == "cuda":
-            model.half()
-
     return processor, model
 
 
@@ -174,10 +171,7 @@ async def phonemize(request: Request, authorization: str | None = Header(default
     chunks: list[dict[str, Any]] = []
 
     device = next(model_instance.parameters()).device
-    if device.type == "cuda":
-        inference_dtype = torch.float16
-    else:
-        inference_dtype = torch.float32
+    inference_dtype = torch.float32
 
     for chunk_number, chunk_start in enumerate(
         range(0, len(audio), step_samples),
