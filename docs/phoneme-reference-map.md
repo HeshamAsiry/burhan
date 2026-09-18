@@ -1,46 +1,62 @@
 # Quran phoneme reference map
 
-Burhan keeps the expected phoneme sequence in a server-only table:
+Burhan keeps the expected phoneme sequence and its source mappings in a server-side table:
 
-quran_phoneme_references
+`quran_phoneme_references`
 
 Each row is linked to exactly one Quran ayah and stores:
 
 - phoneme sequence
 - phoneme version
 - source
+- letter-to-phoneme spans
+- Tajweed mapping spans
 
-The canonical Quran text remains in ayahs.text_ar. The phoneme sequence is derived metadata.
+The canonical Quran text remains in `ayahs.text_ar`. The phoneme data is derived metadata.
 
 ## Builder
 
-Configure a trusted phonemizer endpoint:
+Reference generation is a build-time operation. Burhan runs the pinned `quranic-phonemizer==2.9.0` package directly inside GitHub Actions; it does not call a remote phonemizer API.
 
-BURHAN_PHONEMIZER_URL=https://your-phonemizer.example/phonemize
-BURHAN_PHONEMIZER_TOKEN=...
+The workflow requires only:
 
-Then run:
+```text
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+```
 
-npm run map:phonemes
+Run manually from GitHub Actions:
 
-The endpoint receives:
+```text
+Build Quran phoneme references
+```
 
-{
-  "text_ar": "fully vowelized Quran text",
-  "surah_id": 2,
-  "ayah_number": 4
-}
+The builder resolves each ayah by its canonical `surah_id:ayah_number` reference, generates the phoneme sequence plus rich letter/Tajweed mappings, and upserts the result by `ayah_id`.
 
-It must return:
+The build is considered complete only when all 6,236 Quran ayahs have non-empty references.
 
-{
-  "phonemes": ["..."],
-  "phoneme_version": "…",
-  "source": "…"
-}
+## Runtime
 
-The builder validates that all 6,236 ayahs have a non-empty phoneme sequence before considering the import complete.
+The API reads the stored references from `quran_phoneme_references`. It does not regenerate phonemes per request.
 
-Do not point this at an unlicensed copy of a research phonetizer. The source and license of the phonemizer must be suitable for the way Burhan and its client applications are distributed.
+This keeps the reference side deterministic and separate from the runtime audio provider:
 
-Iqra'Eval documents a 68-phoneme inventory for Qur'anic/MSA pronunciation work and notes that reference phonemes are generated from fully vowelized text. Burhan keeps this reference generation behind an interchangeable provider so the dataset/source can be changed without changing the API model.
+```text
+build time:
+GitHub Actions
+  ↓
+quranic-phonemizer
+  ↓
+Supabase quran_phoneme_references
+
+runtime:
+student audio
+  ↓
+audio/phoneme provider
+  ↓
+predicted phonemes
+  ↓
+compare against stored reference
+```
+
+The audio provider remains replaceable. It is responsible for analyzing the student's recording; the Quran-side reference is owned by Burhan's stored dataset.
