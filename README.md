@@ -61,6 +61,6 @@ A custom provider can be used instead with BURHAN_TAJWEED_PHONEME_PROVIDER=custo
 
 The normalized provider response is expected to contain predicted_phonemes and confidence. It may also return phoneme_timings, where each timing identifies the predicted phoneme index with start_ms, end_ms, and optional confidence. Burhan validates those timings and stores them with the audio evaluation for later alignment/acoustic analysis.
 
-Madd acoustic measurements can be supplied separately through BURHAN_MADD_ACOUSTIC_PROVIDER_URL; this provider returns occurrence-level duration observations and is the signal used for Madd duration verification.
+Madd acoustic measurements can be supplied separately through BURHAN_MADD_ACOUSTIC_PROVIDER_URL; this provider returns occurrence-level duration observations and is the signal used for Madd duration verification. When a dedicated Madd observation is missing, Burhan can derive an acoustic duration from validated phoneme timings aligned to the Madd phoneme span. Set BURHAN_MADD_REFERENCE_HARAKAH_MS on the server to calibrate that measured duration into harakah; without it, the duration is retained as evidence but is not auto-graded.
 
 Never expose service-role keys or provider tokens to browser clients.
