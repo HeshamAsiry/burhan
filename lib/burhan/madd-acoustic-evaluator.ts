@@ -6,6 +6,11 @@ export type MaddTarget = {
   condition?: "waqf" | "always";
   requires_stop?: boolean;
   notes?: string | null;
+  ayah_id?: string;
+  char_start?: number;
+  char_end?: number;
+  phoneme_start?: number;
+  phoneme_end?: number;
 };
 
 export type MaddObservation = {
