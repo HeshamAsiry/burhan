@@ -93,5 +93,4 @@ export function parsePhonemeTimings(
         ...(confidence == null ? {} : { confidence }),
       };
     })
-    .sort((a, b) => a.index - b.index);
-}
+    .sort((a, b) => a.index - b.index);\n}
