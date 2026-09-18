@@ -13,15 +13,9 @@ for node in tree.body:
 namespace = {"__name__": "alignment_test"}
 exec(compile(ast.Module(body=nodes, type_ignores=[]), "alignment_test", "exec"), namespace)
 
-canonical = {
-    "1:1": "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ",
-    "2:1": "الٓمٓ",
-    "10:1": "الٓر ۚ تِلْكَ ءَايَـٰتُ ٱلْكِتَـٰبِ ٱلْحَكِيمِ",
-    "27:36": "فَلَمَّا جَآءَ سُلَيْمَـٰنَ قَالَ أَتُمِدُّونَنِ بِمَالٍۢ فَمَآ ءَاتَىٰنِۦَ ٱللَّهُ خَيْرٌۭ مِّمَّآ ءَاتَىٰكُم بَلْ أَنتُم بِهَدِيَّتِكُمْ تَفْرَحُونَ",
-    "38:1": "صٓ ۚ وَٱلْقُرْءَانِ ذِى ٱلذِّكْرِ",
-}
-
 pm = Phonemizer()
+
+canonical = {"37:163": "إِلَّا مَنْ هُوَ صَالِ ٱلْجَحِيمِ"}
 
 for ref, text in canonical.items():
     result = pm.phonemize(ref)
