@@ -1,3 +1,4 @@
+# Triggered runtime verification of the actual Burhan API route
 name: Run Burhan API self-test
 
 on:
@@ -11,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
 
     steps:
       - name: Checkout
@@ -49,7 +49,11 @@ jobs:
       - name: Generate test through Burhan API
         run: |
           set -o pipefail
-          curl --fail-with-body -sS             -X POST             http://127.0.0.1:3000/api/v1/tests/generate             -H "Content-Type: application/json"             --data '{
+          curl --fail-with-body -sS \
+            -X POST \
+            http://127.0.0.1:3000/api/v1/tests/generate \
+            -H "Content-Type: application/json" \
+            --data '{
               "juz": 30,
               "level": 4,
               "test_type": "custom",
