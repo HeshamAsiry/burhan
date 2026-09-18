@@ -1,5 +1,6 @@
 export type CanonicalPhoneme =
   | "<"
+  | "<<"
   | "a"
   | "u"
   | "i"
@@ -42,6 +43,7 @@ export type CanonicalPhoneme =
 
 const BURHAN_TO_NAWAR: Record<string, CanonicalPhoneme> = {
   "ʔ": "<",
+  "ʔʔ": "<<",
   "a": "a",
   "u": "u",
   "i": "i",
