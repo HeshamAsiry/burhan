@@ -9,6 +9,7 @@ import {
 import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
 import { runMaddAcousticProvider } from "../../../../../lib/burhan/madd-acoustic-provider";
+import { mapCharRangeToPhonemeSpan } from "../../../../../lib/burhan/phoneme-reference-map";
 
 const schema = z.object({
   attempt_id: z.string().uuid(),
@@ -140,7 +141,9 @@ export async function POST(request: Request) {
 
     const { data: references, error: referencesError } = await db
       .from("quran_phoneme_references")
-      .select("ayah_id,phoneme_version,phonemes")
+      .select(
+        "ayah_id,phoneme_version,phonemes,letter_phoneme_mappings,tajweed_mappings",
+      )
       .in(
         "ayah_id",
         orderedAyahs.map((ayah) => ayah.id),
@@ -163,13 +166,20 @@ export async function POST(request: Request) {
       (references ?? []).map((row) => [row.ayah_id, row]),
     );
 
-    const referencePhonemes = orderedAyahs.flatMap((ayah) => {
-      const value = referenceByAyah.get(ayah.id)?.phonemes;
-      if (!Array.isArray(value)) {
+    const referencePhonemeOffsetByAyah = new Map<string, number>();
+    const referencePhonemes: string[] = [];
+
+    for (const ayah of orderedAyahs) {
+      const reference = referenceByAyah.get(ayah.id);
+      const value = reference?.phonemes;
+
+      if (!reference || !Array.isArray(value) || !value.length) {
         throw new Error("Invalid phoneme reference for ayah " + ayah.id);
       }
-      return value.map((phoneme) => String(phoneme));
-    });
+
+      referencePhonemeOffsetByAyah.set(ayah.id, referencePhonemes.length);
+      referencePhonemes.push(...value.map((phoneme) => String(phoneme)));
+    }
 
     const referenceVersion = [
       ...new Set(
@@ -234,6 +244,18 @@ export async function POST(request: Request) {
       const profile = profileByRule.get(occurrence.rule.code);
       const expectedBehavior = occurrence.expected_behavior ?? {};
 
+      const reference = referenceByAyah.get(occurrence.ayah_id);
+      const phonemeOffset =
+        referencePhonemeOffsetByAyah.get(occurrence.ayah_id) ?? 0;
+      const phonemeSpan =
+        reference &&
+        mapCharRangeToPhonemeSpan(
+          reference,
+          Number(occurrence.char_start),
+          Number(occurrence.char_end),
+          phonemeOffset,
+        );
+
       return {
         occurrence_id: occurrence.id,
         rule_code: occurrence.rule.code,
@@ -248,6 +270,11 @@ export async function POST(request: Request) {
             : ("always" as const),
         requires_stop: expectedBehavior.condition === "waqf",
         notes: profile?.notes ?? null,
+        ayah_id: occurrence.ayah_id,
+        char_start: Number(occurrence.char_start),
+        char_end: Number(occurrence.char_end),
+        phoneme_start: phonemeSpan?.start,
+        phoneme_end: phonemeSpan?.end,
       };
     });
 
