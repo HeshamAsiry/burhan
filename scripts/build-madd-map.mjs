@@ -82,18 +82,25 @@ function add(
   expectedBehavior,
   wordCharOffset = 0,
   nextWordCharOffset = wordCharOffset,
+  nextUnitIsNextWord = false,
 ) {
-  const contextText = nextWord ? word + " " + nextWord : word;
-  const triggerText = nextWord && nextUnit
-    ? word.slice(unit.start) + " " + nextWord.slice(0, nextUnit.end)
+  const contextText = nextUnitIsNextWord && nextWord
+    ? word + " " + nextWord
+    : word;
+  const triggerText = nextUnit
+    ? nextUnitIsNextWord
+      ? word.slice(unit.start) + " " + nextWord.slice(0, nextUnit.end)
+      : word.slice(unit.start, nextUnit.end)
     : word.slice(unit.start, unit.end);
 
   out.push({
     ayah_id: null,
     word_index: wordIndex,
-    word_index_end: nextWord && nextUnit ? wordIndex + 1 : wordIndex,
+    word_index_end: nextUnitIsNextWord ? wordIndex + 1 : wordIndex,
     char_start: wordCharOffset + unit.start,
-    char_end: nextUnit ? nextWordCharOffset + nextUnit.end : wordCharOffset + unit.end,
+    char_end: nextUnitIsNextWord
+      ? nextWordCharOffset + nextUnit.end
+      : wordCharOffset + nextUnit.end,
     trigger_text: triggerText,
     context_text: contextText,
     expected_behavior: expectedBehavior,
@@ -122,7 +129,7 @@ function detectMadd(
       add(out, word, nextWord, wordIndex, unit, undefined, "madd_badl", {
         cause: "preceding_hamza_embedded_in_alif_maddah",
         reference_duration: "route_profile",
-      }, wordCharOffset, nextWordCharOffset);
+      }, wordCharOffset, nextWordCharOffset, true);
       continue;
     }
 
