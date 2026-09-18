@@ -85,19 +85,29 @@ def is_ignorable_alignment_char(value):
     )
 
 
+def alignment_significant(value):
+    return not is_ignorable_alignment_char(value)
+
+
 def locate_exact(source, needle, start, reference):
     """
     Align a phonemizer mapping against canonical Qur'anic text.
 
-    The phonemizer intentionally omits Arabic combining marks and Quranic
-    annotation signs from many mapping chunks, while the canonical text
-    preserves them. Match semantic characters in order and skip intervening
-    non-semantic marks/separators.
+    Mapping chunks may contain combining marks, pause symbols, or other
+    annotation-only scalars that are absent from the canonical text. Match
+    significant Arabic characters in order and treat annotation-only chunks
+    as zero-width/virtual spans.
     """
+    significant = [char for char in needle if alignment_significant(char)]
+
+    if not significant:
+        return start, start
+
     source_index = start
     match_start = None
+    match_end = start
 
-    for expected in needle:
+    for expected in significant:
         while (
             source_index < len(source)
             and source[source_index] != expected
@@ -117,14 +127,9 @@ def locate_exact(source, needle, start, reference):
             match_start = source_index
 
         source_index += 1
+        match_end = source_index
 
-    if match_start is None:
-        raise RuntimeError(
-            "Empty mapping cannot be aligned for " + reference
-        )
-
-    return match_start, source_index
-
+    return match_start, match_end
 
 def build_letter_phoneme_mappings(result, canonical_text, reference):
     mappings = []
