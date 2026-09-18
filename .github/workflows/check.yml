@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Validate IqraEval inference service syntax
+        run: python3 -m py_compile inference/iqraeval/main.py
       - uses: actions/setup-node@v4
         with:
           node-version: 20
