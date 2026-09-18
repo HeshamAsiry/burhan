@@ -129,7 +129,7 @@ function detectMadd(
       add(out, word, nextWord, wordIndex, unit, undefined, "madd_badl", {
         cause: "preceding_hamza_embedded_in_alif_maddah",
         reference_duration: "route_profile",
-      }, wordCharOffset, nextWordCharOffset, true);
+      }, wordCharOffset, nextWordCharOffset);
       continue;
     }
 
