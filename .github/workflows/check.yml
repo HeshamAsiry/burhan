@@ -45,7 +45,7 @@ jobs:
             sleep 2
           done
           curl --fail-with-body -sS             -X POST             http://127.0.0.1:3000/api/v1/tests/generate             -H "Content-Type: application/json"             -H "x-burhan-api-key: $BURHAN_API_KEY"             --data '{
-              "juz": 30,
+              "juz": 27,
               "level": 4,
               "test_type": "custom",
               "persist": true,
@@ -61,18 +61,18 @@ jobs:
                 {
                   "type": "recite_range",
                   "start": {
-                    "surah_id": 90,
+                    "surah_id": 55,
                     "ayah_number": 1
                   },
                   "end": {
-                    "surah_id": 90,
+                    "surah_id": 55,
                     "ayah_number": 5
                   }
                 },
                 {
                   "type": "mcq",
-                  "surah_id": 92,
-                  "ayah_number": 1
+                  "surah_id": 55,
+                  "ayah_number": 13
                 }
               ]
             }'
