@@ -52,7 +52,7 @@ jobs:
               "questions": [
                 {
                   "type": "mutashabihat",
-                  "anchor": "فقلنا",
+                  "anchor": "فبأي آلاء ربكما تكذبان",
                   "occurrences_required": 2,
                   "ayahs_after": 1,
                   "threshold": 0.45,
