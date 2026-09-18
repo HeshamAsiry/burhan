@@ -4,6 +4,7 @@ import {
   parsePhonemeTimings,
   type PhonemeTiming,
 } from "./phoneme-provider-contract";
+import { fetchWithProviderTimeout } from "./provider-fetch";
 
 export type HuggingFacePhonemeResult = {
   provider: "huggingface";
@@ -31,38 +32,19 @@ function endpointUrl() {
 }
 
 function tokenizePhonemeText(value: string) {
-  return value
-    .trim()
-    .split(/\s+/u)
-    .map((token) => token.trim())
-    .filter(Boolean);
+  return value.trim().split(/\s+/u).map((token) => token.trim()).filter(Boolean);
 }
 
 function confidenceFromPayload(payload: unknown) {
   if (!payload || typeof payload !== "object") return 0.5;
-
   const object = payload as Record<string, unknown>;
-
-  if (typeof object.confidence === "number") {
-    return Math.min(1, Math.max(0, object.confidence));
-  }
-
+  if (typeof object.confidence === "number") return Math.min(1, Math.max(0, object.confidence));
   if (Array.isArray(object.chunks)) {
     const scores = object.chunks
-      .map((chunk) =>
-        chunk && typeof chunk === "object"
-          ? Number((chunk as Record<string, unknown>).score)
-          : NaN,
-      )
+      .map((chunk) => chunk && typeof chunk === "object" ? Number((chunk as Record<string, unknown>).score) : NaN)
       .filter((score) => Number.isFinite(score) && score >= 0 && score <= 1);
-
-    if (scores.length) {
-      return Number(
-        (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(4),
-      );
-    }
+    if (scores.length) return Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(4));
   }
-
   return 0.5;
 }
 
@@ -74,52 +56,47 @@ export async function runHuggingFacePhonemeProvider(input: {
 }): Promise<HuggingFacePhonemeResult> {
   void input.questionId;
   void input.referencePhonemes;
-
   const url = endpointUrl();
   const audioUrl = validateAudioUrl(input.audioUrl);
   const token = process.env.HF_TOKEN?.trim();
+  if (!token) throw new Error("HF_TOKEN is not configured.");
 
-  if (!token) {
-    throw new Error("HF_TOKEN is not configured.");
-  }
-
-  const audioResponse = await fetch(audioUrl, { cache: "no-store" });
+  const audioResponse = await fetchWithProviderTimeout(
+    audioUrl,
+    { cache: "no-store" },
+    "BURHAN_HF_AUDIO_FETCH_TIMEOUT_MS",
+  );
 
   if (!audioResponse.ok) {
     throw new Error(
-      "Unable to fetch audio for Hugging Face inference: HTTP " +
-        audioResponse.status,
+      "Unable to fetch audio for Hugging Face inference: HTTP " + audioResponse.status,
     );
   }
 
   const contentLength = Number(audioResponse.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_AUDIO_BYTES) {
-    throw new Error("Audio file is too large for Burhan v1.");
-  }
+  if (contentLength > MAX_AUDIO_BYTES) throw new Error("Audio file is too large for Burhan v1.");
 
   const audioBuffer = await audioResponse.arrayBuffer();
-  if (!audioBuffer.byteLength) {
-    throw new Error("Audio file is empty.");
-  }
-
-  if (audioBuffer.byteLength > MAX_AUDIO_BYTES) {
-    throw new Error("Audio file is too large for Burhan v1.");
-  }
+  if (!audioBuffer.byteLength) throw new Error("Audio file is empty.");
+  if (audioBuffer.byteLength > MAX_AUDIO_BYTES) throw new Error("Audio file is too large for Burhan v1.");
 
   const contentType =
-    audioResponse.headers.get("content-type")?.split(";")[0] ||
-    "audio/wav";
+    audioResponse.headers.get("content-type")?.split(";")[0] || "audio/wav";
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + token,
-      "Content-Type": contentType,
-      Accept: "application/json",
+  const response = await fetchWithProviderTimeout(
+    url,
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": contentType,
+        Accept: "application/json",
+      },
+      body: audioBuffer,
+      cache: "no-store",
     },
-    body: audioBuffer,
-    cache: "no-store",
-  });
+    "BURHAN_HF_PHONEME_PROVIDER_TIMEOUT_MS",
+  );
 
   const payload = await response.json().catch(async () => {
     const text = await response.text().catch(() => "");
@@ -133,7 +110,6 @@ export async function runHuggingFacePhonemeProvider(input: {
       typeof (payload as Record<string, unknown>).error === "string"
         ? String((payload as Record<string, unknown>).error)
         : "Hugging Face phoneme endpoint failed.";
-
     throw new Error(message);
   }
 
@@ -147,11 +123,8 @@ export async function runHuggingFacePhonemeProvider(input: {
         : "";
 
   const predictedPhonemes = tokenizePhonemeText(textValue);
-
   if (!predictedPhonemes.length) {
-    throw new Error(
-      "Hugging Face phoneme endpoint returned no phoneme sequence.",
-    );
+    throw new Error("Hugging Face phoneme endpoint returned no phoneme sequence.");
   }
 
   const phonemeTimings = parsePhonemeTimings(
@@ -180,8 +153,7 @@ export async function runHuggingFacePhonemeProvider(input: {
       reference_phoneme_count: input.referencePhonemes.length,
       madd_target_count: input.maddTargets?.length ?? 0,
       confidence_source:
-        typeof (payload as Record<string, unknown> | null)?.confidence ===
-        "number"
+        typeof (payload as Record<string, unknown> | null)?.confidence === "number"
           ? "provider"
           : Array.isArray((payload as Record<string, unknown> | null)?.chunks)
             ? "chunk_scores"
