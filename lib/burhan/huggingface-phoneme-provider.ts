@@ -1,10 +1,15 @@
 import { validateAudioUrl, MAX_AUDIO_BYTES } from "./audio-url";
 import type { MaddObservation, MaddTarget } from "./madd-acoustic-evaluator";
+import {
+  parsePhonemeTimings,
+  type PhonemeTiming,
+} from "./phoneme-provider-contract";
 
 export type HuggingFacePhonemeResult = {
   provider: "huggingface";
   model: string;
   predicted_phonemes: string[];
+  phoneme_timings: PhonemeTiming[];
   confidence: number;
   audio_quality?: "good" | "unclear" | "poor";
   madd_observations?: MaddObservation[];
@@ -149,6 +154,13 @@ export async function runHuggingFacePhonemeProvider(input: {
     );
   }
 
+  const phonemeTimings = parsePhonemeTimings(
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>).phoneme_timings
+      : undefined,
+    predictedPhonemes,
+  );
+
   const confidence = confidenceFromPayload(payload);
   const model =
     process.env.BURHAN_HF_PHONEME_MODEL?.trim() ||
@@ -158,6 +170,7 @@ export async function runHuggingFacePhonemeProvider(input: {
     provider: "huggingface",
     model,
     predicted_phonemes: predictedPhonemes,
+    phoneme_timings: phonemeTimings,
     confidence,
     audio_quality: confidence >= 0.85 ? "good" : "unclear",
     madd_observations: [],
