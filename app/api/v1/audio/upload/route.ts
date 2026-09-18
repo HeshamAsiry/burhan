@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdmin } from "../../../../lib/supabase-admin";
+import { getSupabaseAdmin } from "../../../../../lib/supabase-admin";
 
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
 
