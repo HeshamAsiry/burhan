@@ -1,14 +1,27 @@
 import fs from "node:fs";
 import ts from "typescript";
+import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
 const source = fs.readFileSync("lib/burhan/madd-acoustic-evaluator.ts", "utf8");
 const transpiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2020,
+  },
 }).outputText;
 
 const module = { exports: {} };
-new Function("require", "module", "exports", transpiled)(require, module, module.exports);
-const { evaluateMaddObservation, evaluateMaddObservations, summarizeMaddMeasurements } = module.exports;
+new Function("require", "module", "exports", transpiled)(
+  require,
+  module,
+  module.exports,
+);
+const {
+  evaluateMaddObservation,
+  evaluateMaddObservations,
+  summarizeMaddMeasurements,
+} = module.exports;
 
 const target = {
   occurrence_id: "madd-1",
@@ -76,7 +89,9 @@ if (
   noStop.status !== "not_assessed" ||
   !noStop.reasons.includes("waqf_required")
 ) {
-  throw new Error("Expected a waqf-dependent Madd without stop detection to remain unassessed.");
+  throw new Error(
+    "Expected a waqf-dependent Madd without stop detection to remain unassessed.",
+  );
 }
 
 const summary = summarizeMaddMeasurements(
