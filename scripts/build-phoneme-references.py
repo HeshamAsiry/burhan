@@ -77,14 +77,22 @@ def fetch_all_ayahs():
     return rows
 
 
+def is_ignorable_alignment_char(value):
+    return (
+        value.isspace()
+        or value == "ـ"
+        or unicodedata.category(value)[0] in {"M", "P", "S", "C"}
+    )
+
+
 def locate_exact(source, needle, start, reference):
     """
     Align a phonemizer mapping against canonical Qur'anic text.
 
-    The phonemizer intentionally omits Arabic combining marks from many
-    mapping chunks, while the canonical text preserves them. Match the
-    semantic characters in order and skip intervening combining marks that
-    are not present in the mapping chunk.
+    The phonemizer intentionally omits Arabic combining marks and Quranic
+    annotation signs from many mapping chunks, while the canonical text
+    preserves them. Match semantic characters in order and skip intervening
+    non-semantic marks/separators.
     """
     source_index = start
     match_start = None
@@ -93,11 +101,7 @@ def locate_exact(source, needle, start, reference):
         while (
             source_index < len(source)
             and source[source_index] != expected
-            and (
-                source[source_index].isspace()
-                or source[source_index] == "ـ"
-                or unicodedata.category(source[source_index])[0] in {"M", "P", "S", "C"}
-            )
+            and is_ignorable_alignment_char(source[source_index])
         ):
             source_index += 1
 
@@ -155,11 +159,7 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
     if char_cursor != len(canonical_text):
         remaining = canonical_text[char_cursor:]
         if any(
-            not (
-                char == "ـ"
-                or unicodedata.category(char)[0] in {"M", "P", "C"}
-                or char.isspace()
-            )
+            not is_ignorable_alignment_char(char)
             for char in remaining
         ):
             raise RuntimeError(
