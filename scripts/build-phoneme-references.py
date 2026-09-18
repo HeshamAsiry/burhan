@@ -75,8 +75,119 @@ def fetch_all_ayahs():
     return rows
 
 
+def locate_exact(source, needle, start, reference):
+    position = source.find(needle, start)
+
+    if position < 0:
+        raise RuntimeError(
+            "Could not align mapping " + repr(needle) + " in canonical text for " + reference
+        )
+
+    return position
+
+
+def build_letter_phoneme_mappings(result, canonical_text, reference):
+    mappings = []
+    char_cursor = 0
+    phoneme_cursor = 0
+
+    for chars, phoneme_list in result.letter_phoneme_mappings().to_list():
+        char_start = locate_exact(canonical_text, chars, char_cursor, reference)
+        char_end = char_start + len(chars)
+
+        phoneme_start = phoneme_cursor
+        phoneme_end = phoneme_start + len(phoneme_list)
+
+        mappings.append(
+            {
+                "chars": chars,
+                "phonemes": phoneme_list,
+                "char_start": char_start,
+                "char_end": char_end,
+                "phoneme_start": phoneme_start,
+                "phoneme_end": phoneme_end,
+            }
+        )
+
+        char_cursor = char_end
+        phoneme_cursor = phoneme_end
+
+    if char_cursor != len(canonical_text):
+        remaining = canonical_text[char_cursor:]
+        if remaining.strip():
+            raise RuntimeError(
+                "Letter/phoneme mapping did not cover canonical text for "
+                + reference
+                + "; remaining="
+                + repr(remaining)
+            )
+
+    return mappings
+
+
+def build_tajweed_mappings(result, canonical_text, reference):
+    raw_mappings = json.loads(result.tajweed_mappings().to_json())
+
+    word_matches = list(__import__("re").finditer(r"\S+", canonical_text))
+    mapped = []
+
+    for mapping in raw_mappings:
+        location = str(mapping.get("location", ""))
+        parts = location.split(":")
+        if len(parts) < 3 or not parts[-1].isdigit():
+            raise RuntimeError("Invalid tajweed mapping location for " + reference)
+
+        word_index = int(parts[-1]) - 1
+        if word_index < 0 or word_index >= len(word_matches):
+            raise RuntimeError(
+                "Tajweed word index is outside canonical text for " + reference
+            )
+
+        word_match = word_matches[word_index]
+        cursor = word_match.start()
+        entries = []
+
+        for entry in mapping.get("entries", []):
+            char = str(entry.get("char", ""))
+            if not char:
+                continue
+
+            char_start = locate_exact(canonical_text, char, cursor, reference)
+            if char_start >= word_match.end():
+                raise RuntimeError(
+                    "Tajweed mapping crossed word boundary for " + reference
+                )
+
+            char_end = char_start + len(char)
+            if char_end > word_match.end():
+                raise RuntimeError(
+                    "Tajweed mapping exceeded word boundary for " + reference
+                )
+
+            entries.append(
+                {
+                    "char": char,
+                    "char_start": char_start,
+                    "char_end": char_end,
+                    "source_rules": entry.get("source_rules", []),
+                    "target_rules": entry.get("target_rules", []),
+                }
+            )
+            cursor = char_end
+
+        mapped.append(
+            {
+                "location": location,
+                "entries": entries,
+            }
+        )
+
+    return mapped
+
+
 def phonemize(phonemizer, ayah):
     reference = str(ayah["surah_id"]) + ":" + str(ayah["ayah_number"])
+    canonical_text = ayah["text_ar"]
     result = phonemizer.phonemize(reference)
 
     phonemes = result.phonemes_str(
@@ -88,14 +199,22 @@ def phonemize(phonemizer, ayah):
     if not phonemes:
         raise RuntimeError("Empty phoneme reference for " + reference)
 
-    letter_mappings = [
-        {"chars": chars, "phonemes": phoneme_list}
-        for chars, phoneme_list in result.letter_phoneme_mappings().to_list()
-    ]
-    tajweed_mappings = json.loads(result.tajweed_mappings().to_json())
+    letter_mappings = build_letter_phoneme_mappings(
+        result,
+        canonical_text,
+        reference,
+    )
+    tajweed_mappings = build_tajweed_mappings(
+        result,
+        canonical_text,
+        reference,
+    )
 
     if not letter_mappings:
         raise RuntimeError("Empty letter/phoneme mapping for " + reference)
+
+    if not tajweed_mappings:
+        raise RuntimeError("Empty tajweed mapping for " + reference)
 
     return {
         "ayah_id": ayah["id"],
