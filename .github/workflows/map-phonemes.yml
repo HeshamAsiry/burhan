@@ -10,7 +10,7 @@ on:
 
 jobs:
   map-phonemes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -29,6 +29,6 @@ jobs:
       - name: Build Quran phoneme references
         run: python scripts/build-phoneme-references.py
         env:
-          SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PHONEME_REFERENCE_BATCH_SIZE: \${{ inputs.batch_size }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PHONEME_REFERENCE_BATCH_SIZE: ${{ inputs.batch_size }}
