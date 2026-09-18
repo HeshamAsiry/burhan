@@ -23,4 +23,5 @@ jobs:
       - run: npm run check:phoneme-provider-contract
       - run: npm run check:phoneme-timing-quality
       - run: npm run check:provider-fetch
+      - run: npm run check:teacher-review
       - run: npm run build
