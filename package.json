@@ -21,7 +21,8 @@
     "check:phoneme-timing-quality": "node scripts/check-phoneme-timing-quality.mjs",
     "check:provider-fetch": "node scripts/check-provider-fetch.mjs",
     "check:teacher-review": "node scripts/check-teacher-review.mjs",
-    "check:phoneme-provider-acceptance": "node scripts/check-phoneme-provider-acceptance.mjs"
+    "check:phoneme-provider-acceptance": "node scripts/check-phoneme-provider-acceptance.mjs",
+    "check:tajweed-analysis-route": "node scripts/check-tajweed-analysis-route.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
