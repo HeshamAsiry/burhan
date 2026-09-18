@@ -1,0 +1,69 @@
+name: Run Burhan API self-test
+
+on:
+  push:
+    paths:
+      - ".github/workflows/run-burhan-api-self-test.yml"
+  workflow_dispatch:
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Burhan API
+        run: npm run build
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Start Burhan API
+        run: |
+          nohup npm start > /tmp/burhan-api.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/v1/health >/tmp/health.json 2>/dev/null; then
+              cat /tmp/health.json
+              break
+            fi
+            sleep 2
+          done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Generate test through Burhan API
+        run: |
+          set -o pipefail
+          curl --fail-with-body -sS             -X POST             http://127.0.0.1:3000/api/v1/tests/generate             -H "Content-Type: application/json"             --data '{
+              "juz": 30,
+              "level": 4,
+              "test_type": "custom",
+              "persist": true,
+              "question_count": 4
+            }' | tee api-response.json
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload API response
+        uses: actions/upload-artifact@v4
+        with:
+          name: burhan-api-self-test-response
+          path: |
+            api-response.json
+            /tmp/burhan-api.log
