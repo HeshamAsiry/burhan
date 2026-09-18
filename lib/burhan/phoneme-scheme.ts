@@ -114,6 +114,10 @@ const BURHAN_TO_NAWAR: Record<string, CanonicalPhoneme> = {
   "yy": "yy",
 };
 
+const NAWAR_VALUES = new Set(
+  Object.values(BURHAN_TO_NAWAR) as string[],
+);
+
 export function canonicalizePhoneme(value: string): CanonicalPhoneme | null {
   const trimmed = String(value).trim();
   if (!trimmed) return null;
@@ -121,8 +125,7 @@ export function canonicalizePhoneme(value: string): CanonicalPhoneme | null {
   const direct = BURHAN_TO_NAWAR[trimmed];
   if (direct) return direct;
 
-  const nawarValues = new Set(Object.values(BURHAN_TO_NAWAR) as string[]);
-  if (nawarValues.has(trimmed)) {
+  if (NAWAR_VALUES.has(trimmed)) {
     return trimmed as CanonicalPhoneme;
   }
 
