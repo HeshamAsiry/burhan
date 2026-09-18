@@ -94,8 +94,9 @@ def locate_exact(source, needle, start, reference):
             source_index < len(source)
             and source[source_index] != expected
             and (
-                source[source_index] == "ـ"
-                or unicodedata.category(source[source_index])[0] in {"M", "P", "C"}
+                source[source_index].isspace()
+                or source[source_index] == "ـ"
+                or unicodedata.category(source[source_index])[0] in {"M", "P", "S", "C"}
             )
         ):
             source_index += 1
