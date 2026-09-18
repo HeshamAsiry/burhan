@@ -93,4 +93,21 @@ export function parsePhonemeTimings(
         ...(confidence == null ? {} : { confidence }),
       };
     })
-    .sort((a, b) => a.index - b.index);\n}
+    .sort((a, b) => a.index - b.index);
+
+  for (let i = 1; i < parsed.length; i += 1) {
+    const previous = parsed[i - 1];
+    const current = parsed[i];
+    if (current.start_ms < previous.end_ms) {
+      throw new Error(
+        "Tajweed phoneme provider returned overlapping phoneme timings between indexes " +
+          previous.index +
+          " and " +
+          current.index +
+          ".",
+      );
+    }
+  }
+
+  return parsed;
+}
