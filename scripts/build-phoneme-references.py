@@ -78,9 +78,11 @@ def fetch_all_ayahs():
 
 
 def is_ignorable_alignment_char(value):
+    codepoint = ord(value)
     return (
         value.isspace()
         or value == "ـ"
+        or 0x06D6 <= codepoint <= 0x06ED
         or unicodedata.category(value)[0] in {"M", "P", "S", "C"}
     )
 
