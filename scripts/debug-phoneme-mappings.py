@@ -3,7 +3,7 @@ from quranic_phonemizer import Phonemizer
 
 pm = Phonemizer()
 
-for ref in ("1:1", "2:1", "2:2", "2:5"):
+for ref in ("10:1",):
     print("\n=== " + ref + " ===", flush=True)
     result = pm.phonemize(ref)
 
