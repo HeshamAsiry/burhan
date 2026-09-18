@@ -1,11 +1,16 @@
 import { validateAudioUrl } from "./audio-url";
 import type { MaddObservation, MaddTarget } from "./madd-acoustic-evaluator";
 import { runHuggingFacePhonemeProvider } from "./huggingface-phoneme-provider";
+import {
+  parsePhonemeTimings,
+  type PhonemeTiming,
+} from "./phoneme-provider-contract";
 
 export type PhonemeProviderResult = {
   provider: string;
   model: string;
   predicted_phonemes: string[];
+  phoneme_timings: PhonemeTiming[];
   confidence: number;
   audio_quality?: "good" | "unclear" | "poor";
   tajweed_score?: number | null;
@@ -83,6 +88,9 @@ export async function runPhonemeProvider(input: {
     throw new Error("Tajweed phoneme provider returned no predicted_phonemes.");
   }
 
+  const predictedPhonemes = payload.predicted_phonemes.map((value: unknown) => String(value));
+  const phonemeTimings = parsePhonemeTimings(payload.phoneme_timings, predictedPhonemes);
+
   const confidence = Number(payload.confidence);
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
     throw new Error("Tajweed phoneme provider returned an invalid confidence.");
@@ -137,7 +145,8 @@ export async function runPhonemeProvider(input: {
   return {
     provider: typeof payload.provider === "string" ? payload.provider : "custom",
     model: typeof payload.model === "string" ? payload.model : "unknown",
-    predicted_phonemes: payload.predicted_phonemes.map((value: unknown) => String(value)),
+    predicted_phonemes: predictedPhonemes,
+    phoneme_timings: phonemeTimings,
     confidence,
     audio_quality:
       payload.audio_quality === "unclear" || payload.audio_quality === "poor"
