@@ -1,6 +1,5 @@
 import type {
   QuranLetterPhonemeMapping,
-  QuranPhonemeReference,
 } from "./quran-phoneme-reference";
 import type { PhonemeOperation } from "./phoneme-evaluator";
 
@@ -227,7 +226,16 @@ export function buildPhonemeReferenceSegments(input: {
     surah_id: number;
     ayah_number: number;
   }>;
-  referenceByAyah: Map<string, QuranPhonemeReference>;
+  referenceByAyah: Map<
+    string,
+    Pick<
+      {
+        phonemes: string[];
+        letter_phoneme_mappings: QuranLetterPhonemeMapping[];
+      },
+      "phonemes" | "letter_phoneme_mappings"
+    >
+  >;
 }): PhonemeReferenceSegment[] {
   let offset = 0;
 
