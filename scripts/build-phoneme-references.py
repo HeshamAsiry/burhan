@@ -193,15 +193,6 @@ def build_tajweed_mappings(
         for match in re.finditer(r"\S+", canonical_text)
         if any(unicodedata.category(char).startswith("L") for char in match.group())
     ]
-    compact_muqattaat = (
-        len(mappings) > len(word_matches)
-        and mappings
-        and all(
-            len(str(mapping.get("location", "")).split(":")) >= 4
-            and str(mapping.get("location", "")).split(":")[-1].isdigit()
-            for mapping in mappings
-        )
-    )
     mapped = []
 
     for mapping in mappings:
@@ -212,7 +203,12 @@ def build_tajweed_mappings(
 
         word_index = int(parts[-1]) - 1
 
-        if compact_muqattaat:
+        # Muqattaat slots use an extra zero-based location component, e.g.
+        # 2:1:1:0, 2:1:1:1, 2:1:1:2. They can appear only at the beginning
+        # of an ayah; later ordinary words keep the normal 3-part location.
+        # Project each named slot onto the corresponding compact canonical
+        # grapheme from letter_phoneme_mappings.
+        if len(parts) >= 4 and parts[-1].isdigit():
             slot_index = int(parts[-1])
             slot = (
                 letter_mappings[slot_index]
@@ -243,7 +239,9 @@ def build_tajweed_mappings(
             )
             continue
 
-        # Muqattaat openings such as 2:1 (الٓمٓ) are compacted into a
+        # A malformed or otherwise unmappable word location must not corrupt
+        # the canonical alignment. Preserve the rule entries as virtual data
+        # rather than guessing a character span.
         # single canonical token, while the phonemizer expands their named
         # letters into multiple internal word slots. Preserve those Tajweed
         # entries, but do not invent character offsets in canonical text.
