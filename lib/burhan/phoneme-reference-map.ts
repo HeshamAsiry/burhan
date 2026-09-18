@@ -1,7 +1,7 @@
 import type {
   QuranLetterPhonemeMapping,
   QuranPhonemeReference,
-} from "./phonemizer-provider";
+} from "./quran-phoneme-reference";
 
 export type PhonemeSpan = {
   start: number;
