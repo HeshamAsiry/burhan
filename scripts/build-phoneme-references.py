@@ -173,6 +173,14 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
 
 def build_tajweed_mappings(result, canonical_text, reference):
     raw_mappings = json.loads(result.tajweed_mappings().to_json())
+    mappings = (
+        raw_mappings.get("words", [])
+        if isinstance(raw_mappings, dict)
+        else raw_mappings
+    )
+
+    if not isinstance(mappings, list):
+        raise RuntimeError("Invalid tajweed mappings payload for " + reference)
 
     word_matches = [
         match
@@ -181,7 +189,7 @@ def build_tajweed_mappings(result, canonical_text, reference):
     ]
     mapped = []
 
-    for mapping in raw_mappings:
+    for mapping in mappings:
         location = str(mapping.get("location", ""))
         parts = location.split(":")
         if len(parts) < 3 or not parts[-1].isdigit():
