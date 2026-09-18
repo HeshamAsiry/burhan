@@ -3,6 +3,8 @@ import os
 import urllib.parse
 import urllib.request
 import urllib.error
+import re
+import unicodedata
 
 from quranic_phonemizer import Phonemizer
 
@@ -91,7 +93,10 @@ def locate_exact(source, needle, start, reference):
         while (
             source_index < len(source)
             and source[source_index] != expected
-            and __import__("unicodedata").category(source[source_index]) == "Mn"
+            and (
+                source[source_index] == "ـ"
+                or unicodedata.category(source[source_index])[0] in {"M", "P", "C"}
+            )
         ):
             source_index += 1
 
@@ -148,7 +153,14 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
 
     if char_cursor != len(canonical_text):
         remaining = canonical_text[char_cursor:]
-        if remaining.strip():
+        if any(
+            not (
+                char == "ـ"
+                or unicodedata.category(char)[0] in {"M", "P", "C"}
+                or char.isspace()
+            )
+            for char in remaining
+        ):
             raise RuntimeError(
                 "Letter/phoneme mapping did not cover canonical text for "
                 + reference
@@ -162,7 +174,11 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
 def build_tajweed_mappings(result, canonical_text, reference):
     raw_mappings = json.loads(result.tajweed_mappings().to_json())
 
-    word_matches = list(__import__("re").finditer(r"\S+", canonical_text))
+    word_matches = [
+        match
+        for match in re.finditer(r"\S+", canonical_text)
+        if any(unicodedata.category(char).startswith("L") for char in match.group())
+    ]
     mapped = []
 
     for mapping in raw_mappings:
