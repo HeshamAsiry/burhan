@@ -1,9 +1,6 @@
 name: Build Madd knowledge map
 
 on:
-  push:
-    paths:
-      - ".github/madd-map.trigger"
   workflow_dispatch:
     inputs:
       batch_size:
