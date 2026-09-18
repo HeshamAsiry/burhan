@@ -339,6 +339,11 @@ export async function POST(request: Request) {
       maddObservations,
     );
     const maddSummary = summarizeMaddMeasurements(maddMeasurements);
+
+    const issueDetected =
+      provider.issue_detected ??
+      (phonemeEvaluation.score < 95 || maddSummary.detected_issues > 0);
+
     const review = decideTeacherReview({
       confidence: provider.confidence,
       issueDetected,
