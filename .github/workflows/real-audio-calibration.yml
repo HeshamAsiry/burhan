@@ -1,0 +1,49 @@
+name: Real Audio Calibration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "calibration/audio/**"
+
+jobs:
+  phonemizer-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run real audio through Burhan phonemizer
+        env:
+          AUDIO_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/calibration/audio/001%20%D8%A7%D9%84%D9%81%D8%A7%D8%AA%D8%AD%D8%A9.mp3
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+
+          url = "https://burhan-phonemizer.vercel.app/api/phonemize"
+          payload = {
+              "audio_url": os.environ["AUDIO_URL"],
+              "reference_phonemes": [],
+              "question_id": "b0000000-0000-4000-8000-000000000002",
+              "madd_targets": []
+          }
+          req = urllib.request.Request(
+              url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=120) as res:
+                  body = res.read().decode("utf-8", errors="replace")
+                  print("HTTP", res.status)
+                  print(body)
+          except urllib.error.HTTPError as exc:
+              body = exc.read().decode("utf-8", errors="replace")
+              print("HTTP", exc.code)
+              print(body)
+              raise SystemExit(1)
+          PY
