@@ -8,6 +8,7 @@ import unicodedata
 
 from quranic_phonemizer import Phonemizer
 
+# Reference alignment is validated through the hosted build workflow.
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 BATCH_SIZE = int(os.environ.get("PHONEME_REFERENCE_BATCH_SIZE", "50"))
