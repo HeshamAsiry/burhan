@@ -3,8 +3,10 @@
 Burhan separates three signals:
 
 1. phoneme recognition and sequence comparison;
-2. optional phoneme timing/alignment;
+2. phoneme timing/alignment;
 3. Madd acoustic observations.
+
+When timings are available, Burhan aligns the expected Madd phoneme range to the predicted phoneme indices produced by the sequence comparison. The aligned audio span becomes a measured duration_ms observation. A dedicated Madd acoustic provider may override that derived observation for an occurrence; missing provider observations are filled from the timing alignment when possible.
 
 A provider must not manufacture timing or Madd measurements when it cannot observe them from the audio.
 
@@ -114,3 +116,13 @@ The public model identifier configured by default is:
     wav2vec2-xls-r-300m-iqraeval
 
 Do not put Hugging Face tokens, Supabase service-role keys, or provider secrets in browser code.
+
+## Derived Madd timing
+
+The route derives Madd timing observations from phoneme_timings and the phoneme edit operations. This is intentionally alignment-based: it measures the audio interval belonging to the Madd target rather than treating the presence of a Madd phoneme as proof of correct duration.
+
+For automatic conversion of milliseconds to harakah, configure the server-only calibration value:
+
+    BURHAN_MADD_REFERENCE_HARAKAH_MS=<positive milliseconds>
+
+If this calibration is not configured and the Madd provider does not return reference_harakah_ms, Burhan still stores the measured acoustic duration and alignment evidence, but the Madd verdict remains not_assessed rather than inventing a duration baseline.
