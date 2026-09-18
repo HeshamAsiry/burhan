@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,4 +16,5 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm run check:madd
+      - run: npm run check:phoneme-evidence
       - run: npm run build
