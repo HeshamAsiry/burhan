@@ -155,7 +155,7 @@ function detectMadd(
       add(out, word, nextWord, wordIndex, unit, nextUnits[0], "madd_munfasil", {
         cause: "hamza_next_word",
         reference_duration: "route_profile",
-      }, wordCharOffset, nextWordCharOffset);
+      }, wordCharOffset, nextWordCharOffset, true);
       continue;
     }
 
