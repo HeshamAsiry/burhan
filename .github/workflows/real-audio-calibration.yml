@@ -21,10 +21,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          audio_path=""
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             audio_path="$(find calibration/audio -maxdepth 1 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.webm' -o -iname '*.flac' \) | sort | head -n 1)"
           else
             audio_path="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^calibration/audio/' | grep -Ei '\.(wav|mp3|m4a|ogg|webm|flac)$' | tail -n 1 || true)"
+            if [[ -z "${audio_path}" ]]; then
+              audio_path="$(find calibration/audio -maxdepth 1 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.webm' -o -iname '*.flac' \) | sort | head -n 1)"
+            fi
           fi
 
           if [[ -z "${audio_path}" || ! -f "${audio_path}" ]]; then
