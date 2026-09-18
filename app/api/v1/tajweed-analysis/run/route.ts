@@ -326,6 +326,8 @@ export async function POST(request: Request) {
           audioUrl: parsed.data.audio_url,
           questionId: question.id,
           targets: maddTargets,
+          predictedPhonemes: provider.predicted_phonemes,
+          phonemeTimings: provider.phoneme_timings,
         })
       : null;
 
