@@ -15,9 +15,10 @@ const compiled = ts.transpileModule(source, {
   },
 }).outputText;
 
+const module = { exports: {} };
 const context = {
-  module: { exports: {} },
-  exports: {},
+  module,
+  exports: module.exports,
 };
 
 vm.createContext(context);
