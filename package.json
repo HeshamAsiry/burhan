@@ -13,7 +13,8 @@
     "map:madd": "node scripts/build-madd-map.mjs",
     "check:madd": "node scripts/check-madd-detector.mjs",
     "map:phonemes": "python3 scripts/build-phoneme-references.py",
-    "check:phoneme-evidence": "node scripts/check-phoneme-evidence.mjs"
+    "check:phoneme-evidence": "node scripts/check-phoneme-evidence.mjs",
+    "check:phoneme-provider-contract": "node scripts/check-phoneme-provider-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.0",
