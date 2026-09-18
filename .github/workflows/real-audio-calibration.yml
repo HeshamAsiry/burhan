@@ -7,76 +7,52 @@ on:
       - "calibration/audio/**"
 
 jobs:
-  phonemizer-calibration:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  model-calibration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
         with:
-          fetch-depth: 2
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install audio/model dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install transformers soundfile sentencepiece
 
       - name: Select calibration audio
         id: audio
         shell: bash
         run: |
           set -euo pipefail
-          audio_path=""
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            audio_path="$(find calibration/audio -maxdepth 1 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.webm' -o -iname '*.flac' \) | sort | head -n 1)"
-          else
-            audio_path="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^calibration/audio/' | grep -Ei '\.(wav|mp3|m4a|ogg|webm|flac)$' | tail -n 1 || true)"
-            if [[ -z "${audio_path}" ]]; then
-              audio_path="$(find calibration/audio -maxdepth 1 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.webm' -o -iname '*.flac' \) | sort | head -n 1)"
-            fi
-          fi
+          audio_path="$(find calibration/audio -maxdepth 1 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.ogg' -o -iname '*.webm' -o -iname '*.flac' \) | sort | head -n 1)"
 
-          if [[ -z "${audio_path}" || ! -f "${audio_path}" ]]; then
-            echo "No calibration audio file found."
+          if [[ -z "${audio_path}" ]]; then
+            echo "No calibration audio found."
             exit 1
           fi
 
           echo "path=${audio_path}" >> "$GITHUB_OUTPUT"
           echo "Selected: ${audio_path}"
 
-      - name: Run real audio through Burhan phonemizer
+      - name: Run real Quran phoneme model
         env:
           AUDIO_PATH: ${{ steps.audio.outputs.path }}
+          BURHAN_CALIBRATION_MODEL: FatimahEmadEldin/wav2vec2-xls-r-300m-iqraeval
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json, os, urllib.parse, urllib.request, urllib.error
+          python scripts/run-real-audio-hf.py "$AUDIO_PATH"
 
-          repo = os.environ["GITHUB_REPOSITORY"]
-          sha = os.environ["GITHUB_SHA"]
-          audio_path = os.environ["AUDIO_PATH"]
-          audio_url = (
-              f"https://raw.githubusercontent.com/{repo}/{sha}/"
-              f"{urllib.parse.quote(audio_path, safe='/')}"
-          )
-
-          provider_url = "https://burhan-phonemizer.vercel.app/api/phonemize"
-          payload = {
-              "audio_url": audio_url,
-              "reference_phonemes": [],
-              "question_id": "b0000000-0000-4000-8000-000000000002",
-              "madd_targets": []
-          }
-          req = urllib.request.Request(
-              provider_url,
-              data=json.dumps(payload).encode("utf-8"),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-
-          try:
-              with urllib.request.urlopen(req, timeout=120) as res:
-                  body = res.read().decode("utf-8", errors="replace")
-                  print("HTTP", res.status)
-                  print(body)
-          except urllib.error.HTTPError as exc:
-              body = exc.read().decode("utf-8", errors="replace")
-              print("HTTP", exc.code)
-              print(body)
-              raise SystemExit(1)
-          PY
+      - name: Upload calibration result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burhan-real-audio-model-calibration-${{ github.run_id }}
+          path: calibration-result.json
+          if-no-files-found: ignore
