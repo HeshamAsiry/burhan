@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
+import fs from "node:fs";
+import path from "node:path";
+import vm from "node:vm";
 const ts = fs.readFileSync(
   path.join(process.cwd(), "lib/burhan/phoneme-scheme.ts"),
   "utf8",
