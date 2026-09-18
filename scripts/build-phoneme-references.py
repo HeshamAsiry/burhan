@@ -196,10 +196,35 @@ def build_tajweed_mappings(result, canonical_text, reference):
             raise RuntimeError("Invalid tajweed mapping location for " + reference)
 
         word_index = int(parts[-1]) - 1
+
+        # Muqattaat openings such as 2:1 (الٓمٓ) are compacted into a
+        # single canonical token, while the phonemizer expands their named
+        # letters into multiple internal word slots. Preserve those Tajweed
+        # entries, but do not invent character offsets in canonical text.
         if word_index < 0 or word_index >= len(word_matches):
-            raise RuntimeError(
-                "Tajweed word index is outside canonical text for " + reference
+            entries = []
+            for entry in mapping.get("entries", []):
+                char = str(entry.get("char", ""))
+                if not char:
+                    continue
+                entries.append(
+                    {
+                        "char": char,
+                        "char_start": -1,
+                        "char_end": -1,
+                        "source_rules": entry.get("source_rules", []),
+                        "target_rules": entry.get("target_rules", []),
+                        "virtual": True,
+                    }
+                )
+            mapped.append(
+                {
+                    "location": location,
+                    "entries": entries,
+                    "virtual_word": True,
+                }
             )
+            continue
 
         word_match = word_matches[word_index]
         cursor = word_match.start()
