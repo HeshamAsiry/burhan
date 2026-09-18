@@ -176,10 +176,11 @@ def main() -> int:
 
         print("Model:", MODEL_ID)
         print("Audio duration (ms):", result["audio_duration_ms"])
-        print("CTC frames:", frame_count)
-        print("Frame duration (ms):", result["frame_duration_ms"])
+        print("Chunks:", result["chunk_count"])
+        print("Chunk size (s):", result["chunk_seconds"])
+        print("Chunk overlap (s):", result["overlap_seconds"])
         print("Mean frame confidence:", result["confidence"])
-        print("Decoded:", decoded)
+        print("Decoded chunks:", len(result["decoded_chunks"]))
         print("Predicted phonemes:", len(predicted_phonemes))
         print("Phoneme timing entries:", len(phoneme_timings))
 
