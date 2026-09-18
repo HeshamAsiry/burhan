@@ -1,39 +1,33 @@
-#!/usr/bin/env node
-
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-const ts = fs.readFileSync(
+import ts from "typescript";
+
+const source = fs.readFileSync(
   path.join(process.cwd(), "lib/burhan/phoneme-scheme.ts"),
   "utf8",
 );
 
-function transpile(source) {
-  return source
-    .replace(/export type[\s\S]*?;\n\n/, "")
-    .replace(/export function /g, "function ")
-    .replace(/export const /g, "const ")
-    .replace(/: Record<string, CanonicalPhoneme>/g, "")
-    .replace(/: CanonicalPhoneme/g, "")
-    .replace(/: string\[\]/g, "")
-    .replace(/: string/g, "")
-    .replace(/: number/g, "")
-    .replace(/: boolean/g, "")
-    .replace(/\| [^\n]+/g, "")
-    .replace(/ as string\[\]/g, "");
-}
+const compiled = ts.transpileModule(source, {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.CommonJS,
+  },
+}).outputText;
 
-const transformed = transpile(ts).replace(
-  /const NAWAR_VALUES/,
-  "const exported = { canonicalizePhoneme, canonicalizePhonemeSequence, countUnknownPhonemes };\nconst NAWAR_VALUES",
-);
+const context = {
+  module: { exports: {} },
+  exports: {},
+};
 
-const context = {};
 vm.createContext(context);
-vm.runInContext(transformed, context);
+vm.runInContext(compiled, context);
 
-const { canonicalizePhoneme, canonicalizePhonemeSequence, countUnknownPhonemes } =
-  context.exported;
+const {
+  canonicalizePhoneme,
+  canonicalizePhonemeSequence,
+  countUnknownPhonemes,
+} = context.module.exports;
 
 const expected = ["ʔ", "m", "a:", "l", "i", "k", "rˤ", "sˤ", "aˤ:"];
 const predicted = ["<", "m", "aa", "l", "i", "k", "r", "S", "AA"];
@@ -43,7 +37,7 @@ const predictedCanonical = canonicalizePhonemeSequence(predicted);
 
 if (JSON.stringify(expectedCanonical) !== JSON.stringify(predictedCanonical)) {
   throw new Error(
-    "Expected equivalent Nawar/Burhan phoneme sequences.\n" +
+    "Expected equivalent Burhan/Nawar phoneme sequences.\n" +
       JSON.stringify(expectedCanonical) +
       "\n" +
       JSON.stringify(predictedCanonical),
@@ -56,6 +50,10 @@ if (canonicalizePhoneme("unknown_token") !== null) {
 
 if (countUnknownPhonemes(predicted) !== 0) {
   throw new Error("Predicted fixture contains no unknown phonemes.");
+}
+
+if (countUnknownPhonemes(["ʔ", "not-a-phoneme"]) !== 1) {
+  throw new Error("Unknown phoneme counting is incorrect.");
 }
 
 console.log("phoneme scheme normalization checks passed");
