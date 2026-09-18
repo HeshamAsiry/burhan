@@ -10,6 +10,7 @@ import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
 import { runMaddAcousticProvider } from "../../../../../lib/burhan/madd-acoustic-provider";
 import { mapCharRangeToPhonemeSpan } from "../../../../../lib/burhan/phoneme-reference-map";
+import { buildMaddTimingObservations } from "../../../../../lib/burhan/madd-phoneme-alignment";
 import {
   buildPhonemeErrorEvidence,
   buildPhonemeReferenceSegments,
@@ -256,7 +257,10 @@ export async function POST(request: Request) {
         mapCharRangeToPhonemeSpan(
           reference,
           Number(occurrence.char_start),
-          Number(occurrence.char_end),
+          Math.min(
+            Number(occurrence.char_end),
+            Number(occurrence.char_start) + 1,
+          ),
           phonemeOffset,
         );
 
@@ -331,10 +335,36 @@ export async function POST(request: Request) {
         })
       : null;
 
-    const maddObservations =
+    const referenceHarakahMsRaw = Number(
+      process.env.BURHAN_MADD_REFERENCE_HARAKAH_MS ?? "",
+    );
+    const referenceHarakahMs =
+      Number.isFinite(referenceHarakahMsRaw) && referenceHarakahMsRaw > 0
+        ? referenceHarakahMsRaw
+        : null;
+
+    const derivedMaddTiming = buildMaddTimingObservations({
+      targets: maddTargets,
+      operations: phonemeEvaluation.operations,
+      timings: provider.phoneme_timings,
+      referenceHarakahMs,
+    });
+
+    const providerMaddObservations =
       dedicatedMaddProvider?.observations ??
       provider.madd_observations ??
       [];
+
+    const providerObservationIds = new Set(
+      providerMaddObservations.map((item) => item.occurrence_id),
+    );
+
+    const maddObservations = [
+      ...providerMaddObservations,
+      ...derivedMaddTiming.observations.filter(
+        (item) => !providerObservationIds.has(item.occurrence_id),
+      ),
+    ];
 
     const maddMeasurements = evaluateMaddObservations(
       maddTargets,
@@ -384,6 +414,7 @@ export async function POST(request: Request) {
             phoneme_evaluation: phonemeEvaluation,
             phoneme_timings: provider.phoneme_timings,
             madd_summary: maddSummary,
+            madd_alignment: derivedMaddTiming.alignments,
           },
           updated_at: new Date().toISOString(),
         },
@@ -444,6 +475,13 @@ export async function POST(request: Request) {
               provider: dedicatedMaddProvider?.provider ?? null,
               model: dedicatedMaddProvider?.model ?? null,
               provider_confidence: dedicatedMaddProvider?.confidence ?? null,
+              reference_harakah_ms: referenceHarakahMs,
+              timing_alignment_count: derivedMaddTiming.alignments.filter(
+                (item) => item.status !== "not_aligned",
+              ).length,
+              timing_aligned_count: derivedMaddTiming.alignments.filter(
+                (item) => item.status === "aligned",
+              ).length,
             },
             pronunciation: {
               score: phonemeEvaluation.score,
