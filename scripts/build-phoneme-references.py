@@ -113,7 +113,7 @@ def locate_exact(source, needle, start, reference):
             "Empty mapping cannot be aligned for " + reference
         )
 
-    return match_start
+    return match_start, source_index
 
 
 def build_letter_phoneme_mappings(result, canonical_text, reference):
@@ -122,8 +122,12 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
     phoneme_cursor = 0
 
     for chars, phoneme_list in result.letter_phoneme_mappings().to_list():
-        char_start = locate_exact(canonical_text, chars, char_cursor, reference)
-        char_end = char_start + len(chars)
+        char_start, char_end = locate_exact(
+            canonical_text,
+            chars,
+            char_cursor,
+            reference,
+        )
 
         phoneme_start = phoneme_cursor
         phoneme_end = phoneme_start + len(phoneme_list)
@@ -182,13 +186,17 @@ def build_tajweed_mappings(result, canonical_text, reference):
             if not char:
                 continue
 
-            char_start = locate_exact(canonical_text, char, cursor, reference)
+            char_start, char_end = locate_exact(
+                canonical_text,
+                char,
+                cursor,
+                reference,
+            )
             if char_start >= word_match.end():
                 raise RuntimeError(
                     "Tajweed mapping crossed word boundary for " + reference
                 )
 
-            char_end = char_start + len(char)
             if char_end > word_match.end():
                 raise RuntimeError(
                     "Tajweed mapping exceeded word boundary for " + reference
