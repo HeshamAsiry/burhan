@@ -50,7 +50,11 @@ const reference = {
 };
 
 const original = mapping.mapCharRangeToPhonemeSpan(reference, 7, 11);
-assert.deepEqual(original, { start: 5, end: 6 });
+assert.deepEqual(
+  original,
+  { start: 5, end: 7 },
+  "Normal mapping may include the carrier and overlapping long-vowel mark",
+);
 
 const madd = mapping.mapMaddCharRangeToPhonemeSpan(reference, 7, 11);
 assert.deepEqual(
