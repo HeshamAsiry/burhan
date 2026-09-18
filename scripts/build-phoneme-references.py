@@ -171,7 +171,12 @@ def build_letter_phoneme_mappings(result, canonical_text, reference):
     return mappings
 
 
-def build_tajweed_mappings(result, canonical_text, reference):
+def build_tajweed_mappings(
+    result,
+    canonical_text,
+    reference,
+    letter_mappings,
+):
     raw_mappings = json.loads(result.tajweed_mappings().to_json())
     mappings = (
         raw_mappings.get("words", [])
@@ -187,6 +192,15 @@ def build_tajweed_mappings(result, canonical_text, reference):
         for match in re.finditer(r"\S+", canonical_text)
         if any(unicodedata.category(char).startswith("L") for char in match.group())
     ]
+    compact_muqattaat = (
+        len(mappings) > len(word_matches)
+        and mappings
+        and all(
+            len(str(mapping.get("location", "")).split(":")) >= 4
+            and str(mapping.get("location", "")).split(":")[-1].isdigit()
+            for mapping in mappings
+        )
+    )
     mapped = []
 
     for mapping in mappings:
@@ -196,6 +210,37 @@ def build_tajweed_mappings(result, canonical_text, reference):
             raise RuntimeError("Invalid tajweed mapping location for " + reference)
 
         word_index = int(parts[-1]) - 1
+
+        if compact_muqattaat:
+            slot_index = int(parts[-1])
+            slot = (
+                letter_mappings[slot_index]
+                if 0 <= slot_index < len(letter_mappings)
+                else None
+            )
+            entries = []
+            for entry in mapping.get("entries", []):
+                char = str(entry.get("char", ""))
+                if not char:
+                    continue
+                entries.append(
+                    {
+                        "char": char,
+                        "char_start": slot["char_start"] if slot else -1,
+                        "char_end": slot["char_end"] if slot else -1,
+                        "source_rules": entry.get("source_rules", []),
+                        "target_rules": entry.get("target_rules", []),
+                        "virtual": slot is None,
+                    }
+                )
+            mapped.append(
+                {
+                    "location": location,
+                    "entries": entries,
+                    "virtual_word": True,
+                }
+            )
+            continue
 
         # Muqattaat openings such as 2:1 (الٓمٓ) are compacted into a
         # single canonical token, while the phonemizer expands their named
@@ -311,6 +356,7 @@ def phonemize(phonemizer, ayah):
         result,
         canonical_text,
         reference,
+        letter_mappings,
     )
 
     if not letter_mappings:
