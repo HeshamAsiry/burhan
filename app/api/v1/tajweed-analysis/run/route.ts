@@ -9,7 +9,7 @@ import {
 import { decideTeacherReview } from "../../../../../lib/burhan/teacher-review";
 import { runPhonemeProvider } from "../../../../../lib/burhan/phoneme-provider";
 import { runMaddAcousticProvider } from "../../../../../lib/burhan/madd-acoustic-provider";
-import { mapCharRangeToPhonemeSpan } from "../../../../../lib/burhan/phoneme-reference-map";
+import { mapMaddCharRangeToPhonemeSpan } from "../../../../../lib/burhan/phoneme-reference-map";
 import { buildMaddTimingObservations } from "../../../../../lib/burhan/madd-phoneme-alignment";
 import {
   buildPhonemeErrorEvidence,
@@ -254,13 +254,10 @@ export async function POST(request: Request) {
         referencePhonemeOffsetByAyah.get(occurrence.ayah_id) ?? 0;
       const phonemeSpan =
         reference &&
-        mapCharRangeToPhonemeSpan(
+        mapMaddCharRangeToPhonemeSpan(
           reference,
           Number(occurrence.char_start),
-          Math.min(
-            Number(occurrence.char_end),
-            Number(occurrence.char_start) + 1,
-          ),
+          Number(occurrence.char_end),
           phonemeOffset,
         );
 
