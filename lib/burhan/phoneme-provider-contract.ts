@@ -18,7 +18,7 @@ export function parsePhonemeTimings(
 
   const seen = new Set<number>();
 
-  return value
+  const parsed = value
     .map((item: unknown, position): PhonemeTiming => {
       if (!item || typeof item !== "object") {
         throw new Error(
