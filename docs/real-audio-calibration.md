@@ -39,6 +39,18 @@ Supported live-test audio formats are:
 
 Maximum size: 20 MB.
 
+## One-command live test
+
+Once `BURHAN_API_URL` and `BURHAN_API_KEY` are set, you can upload a local recording and run the full analysis in one command:
+
+```bash
+export BURHAN_API_URL="https://your-burhan-api.example.com"
+export BURHAN_API_KEY="..." 
+npm run audio:real -- ./fatiha-1-4.wav
+```
+
+The command uploads the recording, obtains the private signed URL, calls Tajweed analysis, and prints the complete JSON response. It uses the dedicated calibration Attempt/Question by default.
+
 ## 2. Send the signed audio URL to Tajweed analysis
 
 Copy the `audio_url` from the upload response.
