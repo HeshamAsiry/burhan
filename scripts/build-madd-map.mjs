@@ -355,8 +355,6 @@ for (const ayah of ayahs) {
     const nextWord = nextMatch?.[0] ?? "";
     const wordCharOffset = match.index ?? 0;
     const nextWordCharOffset = nextMatch?.index ?? wordCharOffset;
-    const nextWordCharOffset =
-      nextWord ? wordCharOffset + word.length + 1 : wordCharOffset;
 
     const detected = detectMadd(
       word,
