@@ -380,6 +380,7 @@ export async function POST(request: Request) {
           evaluation: {
             mode: "phoneme_analysis",
             phoneme_evaluation: phonemeEvaluation,
+            phoneme_timings: provider.phoneme_timings,
             madd_summary: maddSummary,
           },
           updated_at: new Date().toISOString(),
@@ -417,9 +418,21 @@ export async function POST(request: Request) {
           verdict_status: finalVerdict,
           review_reasons:
             provider.tajweed_score == null
-              ? issueDetected
-                ? ["pronunciation_issue_requires_teacher_review", "tajweed_rule_detector_not_connected"]
-                : ["tajweed_rule_detector_not_connected"]
+              ? [
+                  ...(phonemeEvaluation.substitutions +
+                    phonemeEvaluation.deletions +
+                    phonemeEvaluation.insertions >
+                  0
+                    ? ["phoneme_pronunciation_issue"]
+                    : []),
+                  ...(maddSummary.detected_issues > 0
+                    ? ["madd_duration_issue"]
+                    : []),
+                  ...(maddSummary.needs_teacher_review + maddSummary.not_assessed > 0
+                    ? ["madd_measurement_requires_teacher_review"]
+                    : []),
+                  "tajweed_rule_detector_not_connected",
+                ]
               : review.reasons,
           summary: {
             ...(provider.summary ?? {}),
@@ -432,6 +445,7 @@ export async function POST(request: Request) {
             },
             pronunciation: {
               score: phonemeEvaluation.score,
+              phoneme_timing_count: provider.phoneme_timings.length,
               distance: phonemeEvaluation.distance,
               matched_count: phonemeEvaluation.matched_count,
               substitutions: phonemeEvaluation.substitutions,
@@ -470,7 +484,7 @@ export async function POST(request: Request) {
     }
 
     const measurementRows = maddMeasurements.map((measurement) => {
-      const observation = (provider.madd_observations ?? []).find(
+      const observation = maddObservations.find(
         (item) => item.occurrence_id === measurement.occurrence_id,
       );
       const target = maddTargets.find(
