@@ -92,6 +92,29 @@ def alignment_significant(value):
     return not is_ignorable_alignment_char(value)
 
 
+def is_compact_opening_first_word(word_match, word_index, letter_mappings):
+    if word_index != 0 or not letter_mappings:
+        return False
+
+    canonical_bases = [
+        char for char in word_match.group()
+        if alignment_significant(char)
+    ]
+
+    first_chars = str(letter_mappings[0].get("chars", "")).strip()
+    first_bases = [
+        char for char in first_chars
+        if alignment_significant(char)
+    ]
+
+    return (
+        len(canonical_bases) == 1
+        and len(first_bases) == 1
+        and canonical_bases[0] == first_bases[0]
+        and len(letter_mappings[0].get("phonemes", [])) > 1
+    )
+
+
 def locate_exact(source, needle, start, reference):
     """
     Align a phonemizer mapping against canonical Qur'anic text.
@@ -279,6 +302,44 @@ def build_tajweed_mappings(
             continue
 
         word_match = word_matches[word_index]
+
+        # Some single-letter muqattaat openings (for example صٓ) use a
+        # three-part Tajweed location while the phonemizer internally expands
+        # the named letter into multiple pronunciation slots. In that case the
+        # Tajweed entries (ص, ا, د) describe the named letter, not literal
+        # characters in the compact Uthmani token. Anchor them to the first
+        # compact grapheme rather than inventing separate character spans.
+        if is_compact_opening_first_word(
+            word_match,
+            word_index,
+            letter_mappings,
+        ):
+            slot = letter_mappings[0]
+            entries = []
+            for entry in mapping.get("entries", []):
+                char = str(entry.get("char", ""))
+                if not char:
+                    continue
+                entries.append(
+                    {
+                        "char": char,
+                        "char_start": slot["char_start"],
+                        "char_end": slot["char_end"],
+                        "source_rules": entry.get("source_rules", []),
+                        "target_rules": entry.get("target_rules", []),
+                        "virtual": True,
+                    }
+                )
+
+            mapped.append(
+                {
+                    "location": location,
+                    "entries": entries,
+                    "virtual_word": True,
+                }
+            )
+            continue
+
         cursor = word_match.start()
         entries = []
 
