@@ -263,8 +263,8 @@ function detectMadd(
         ayah_id: null,
         word_index: wordIndex,
         word_index_end: wordIndex,
-        char_start: penultimate.start,
-        char_end: penultimate.end,
+        char_start: wordCharOffset + penultimate.start,
+        char_end: wordCharOffset + penultimate.end,
         trigger_text: word.slice(penultimate.start, penultimate.end),
         context_text: word,
         expected_behavior: {
@@ -346,13 +346,15 @@ await supabase
 const rows = [];
 
 for (const ayah of ayahs) {
-  const words = ayah.text_ar.split(/\s+/u).filter(Boolean);
+  const wordMatches = [...ayah.text_ar.matchAll(/\S+/gu)];
 
-  let wordCharOffset = 0;
-
-  for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
-    const word = words[wordIndex];
-    const nextWord = words[wordIndex + 1] ?? "";
+  for (let wordIndex = 0; wordIndex < wordMatches.length; wordIndex++) {
+    const match = wordMatches[wordIndex];
+    const nextMatch = wordMatches[wordIndex + 1];
+    const word = match[0];
+    const nextWord = nextMatch?.[0] ?? "";
+    const wordCharOffset = match.index ?? 0;
+    const nextWordCharOffset = nextMatch?.index ?? wordCharOffset;
     const nextWordCharOffset =
       nextWord ? wordCharOffset + word.length + 1 : wordCharOffset;
 
@@ -368,8 +370,6 @@ for (const ayah of ayahs) {
       occurrence.ayah_id = ayah.id;
       rows.push(occurrence);
     }
-
-    wordCharOffset += word.length + (wordIndex < words.length - 1 ? 1 : 0);
   }
 }
 
