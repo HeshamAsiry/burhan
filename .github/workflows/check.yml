@@ -25,4 +25,5 @@ jobs:
       - run: npm run check:phoneme-timing-quality
       - run: npm run check:provider-fetch
       - run: npm run check:teacher-review
+      - run: npm run check:tajweed-analysis-route
       - run: npm run build
