@@ -339,38 +339,6 @@ export async function POST(request: Request) {
       maddObservations,
     );
     const maddSummary = summarizeMaddMeasurements(maddMeasurements);
-    const measuredMadd = maddMeasurements.filter(
-      (item) => item.observed_duration_ms != null,
-    );
-    const missingExpectedMadd =
-      maddTargets.length > 0 &&
-      (provider.madd_observations?.length ?? 0) < maddTargets.length;
-
-    const issueDetected =
-      provider.issue_detected ??
-      (phonemeEvaluation.score < 95 || maddSummary.detected_issues > 0);
-
-    const maddForcesReview =
-      maddSummary.needs_teacher_review > 0 ||
-      (missingExpectedMadd && measuredMadd.length > 0);
-
-    const finalVerdict =
-      maddTargets.length === 0 && provider.tajweed_score == null
-        ? (issueDetected ? "needs_teacher_review" : "not_assessed")
-        : provider.tajweed_score == null && maddSummary.detected_issues === 0
-          ? (maddForcesReview ? "needs_teacher_review" : "not_assessed")
-          : maddForcesReview
-            ? "needs_teacher_review"
-            : decideTeacherReview({
-            confidence: provider.confidence,
-            issueDetected,
-            audioQuality: provider.audio_quality ?? "good",
-            unresolvedItems:
-              phonemeEvaluation.substitutions +
-              phonemeEvaluation.deletions +
-              phonemeEvaluation.insertions,
-          }).verdictStatus;
-
     const review = decideTeacherReview({
       confidence: provider.confidence,
       issueDetected,
@@ -382,6 +350,18 @@ export async function POST(request: Request) {
         maddSummary.needs_teacher_review +
         maddSummary.not_assessed,
     });
+
+    const hasUnassessedAutomatedTajweed =
+      provider.tajweed_score == null &&
+      maddTargets.length > 0 &&
+      (maddSummary.not_assessed > 0 || maddSummary.needs_teacher_review > 0);
+
+    const finalVerdict =
+      provider.tajweed_score == null
+        ? issueDetected || hasUnassessedAutomatedTajweed
+          ? review.verdictStatus
+          : "not_assessed"
+        : review.verdictStatus;
 
     const { data: audioAnswer, error: audioError } = await db
       .from("burhan_audio_answers")
