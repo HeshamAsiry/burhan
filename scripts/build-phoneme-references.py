@@ -210,13 +210,28 @@ def build_tajweed_mappings(result, canonical_text, reference):
             if not char:
                 continue
 
-            char_start, char_end = locate_exact(
-                canonical_text,
-                char,
-                cursor,
-                reference,
-            )
-            if char_start >= word_match.end():
+            try:
+                char_start, char_end = locate_exact(
+                    canonical_text,
+                    char,
+                    cursor,
+                    reference,
+                )
+                virtual = False
+            except RuntimeError:
+                # The phonemizer may expose a Tajweed grapheme (for example
+                # dagger alif) that is semantically present in the reading
+                # model but is not encoded as a literal code point in our
+                # canonical Uthmani text. Preserve the rule entry and anchor
+                # it at the current canonical position without inventing text.
+                if any(unicodedata.category(ch).startswith("M") for ch in char):
+                    char_start = cursor
+                    char_end = cursor
+                    virtual = True
+                else:
+                    raise
+
+            if char_start > word_match.end():
                 raise RuntimeError(
                     "Tajweed mapping crossed word boundary for " + reference
                 )
@@ -233,6 +248,7 @@ def build_tajweed_mappings(result, canonical_text, reference):
                     "char_end": char_end,
                     "source_rules": entry.get("source_rules", []),
                     "target_rules": entry.get("target_rules", []),
+                    "virtual": virtual,
                 }
             )
             cursor = char_end
