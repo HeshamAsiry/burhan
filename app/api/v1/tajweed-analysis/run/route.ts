@@ -296,7 +296,7 @@ export async function POST(request: Request) {
 
     const referenceSegments = buildPhonemeReferenceSegments({
       orderedAyahs,
-      referenceByAyah: referenceByAyah as Map<string, any>,
+      referenceByAyah,
     });
 
     const phonemeErrorEvidence = buildPhonemeErrorEvidence({
@@ -469,17 +469,6 @@ export async function POST(request: Request) {
                 expected_harakah: item.expected_harakah,
                 deviation_percent: item.deviation_percent,
                 reasons: item.reasons,
-              })),
-            ...phonemeEvaluation.operations
-              .filter((operation) => operation.type !== "match")
-              .slice(0, 200)
-              .map((operation) => ({
-                type: "phoneme_error",
-                operation_type: operation.type,
-                expected: operation.expected,
-                predicted: operation.predicted,
-                expected_index: operation.expected_index,
-                predicted_index: operation.predicted_index,
               })),
           ],
           updated_at: new Date().toISOString(),
