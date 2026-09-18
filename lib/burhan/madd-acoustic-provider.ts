@@ -1,5 +1,6 @@
 import { validateAudioUrl } from "./audio-url";
 import type { MaddObservation, MaddTarget } from "./madd-acoustic-evaluator";
+import type { PhonemeTiming } from "./phoneme-provider-contract";
 
 export type MaddAcousticProviderResult = {
   provider: string;
@@ -64,6 +65,9 @@ export async function runMaddAcousticProvider(input: {
   audioUrl: string;
   questionId: string;
   targets: MaddTarget[];
+  predictedPhonemes?: string[];
+  phonemeTimings?: PhonemeTiming[];
+
 }): Promise<MaddAcousticProviderResult> {
   const url = endpointUrl();
   const audioUrl = validateAudioUrl(input.audioUrl);
@@ -79,6 +83,8 @@ export async function runMaddAcousticProvider(input: {
       audio_url: audioUrl,
       question_id: input.questionId,
       madd_targets: input.targets,
+      predicted_phonemes: input.predictedPhonemes ?? [],
+      phoneme_timings: input.phonemeTimings ?? [],
     }),
     cache: "no-store",
   });
@@ -136,5 +142,6 @@ export async function runMaddAcousticProvider(input: {
       payload?.summary && typeof payload.summary === "object"
         ? (payload.summary as Record<string, unknown>)
         : {},
+
   };
 }
