@@ -14,6 +14,29 @@ type RangeEndpoint = {
   anchor?: string;
 };
 
+function buildPromptFragment(text: string, side: "start" | "end", maxWords = 6) {
+  const words = text.trim().split(/\\s+/).filter(Boolean);
+  if (!words.length) return text;
+
+  const count = Math.min(maxWords, words.length);
+  if (words.length <= count) {
+    const reducedCount = Math.max(1, words.length - 1);
+    const reduced =
+      side === "start"
+        ? words.slice(0, reducedCount).join(" ")
+        : words.slice(words.length - reducedCount).join(" ");
+    if (words.length === 1) return reduced;
+    return side === "start" ? reduced + "…" : "…" + reduced;
+  }
+
+  const fragment =
+    side === "start"
+      ? words.slice(0, count).join(" ")
+      : words.slice(words.length - count).join(" ");
+
+  return side === "start" ? fragment + "…" : "…" + fragment;
+}
+
 export type GeneratedReciteRangeQuestion = {
   question_type: "recite_range";
   prompt: string;
@@ -121,8 +144,10 @@ export async function generateReciteRangeQuestion(input: {
     transitionDistance: last.page_number && first.page_number ? last.page_number - first.page_number : 0,
   });
 
-  const startLabel = `قوله تعالى: «${first.text_ar}»`;
-  const endLabel = `قوله تعالى: «${last.text_ar}»`;
+  const startFragment = buildPromptFragment(first.text_ar, "start");
+  const endFragment = buildPromptFragment(last.text_ar, "end");
+  const startLabel = `قوله تعالى: «${startFragment}»`;
+  const endLabel = `قوله تعالى: «${endFragment}»`;
 
   return {
     question_type: "recite_range",
