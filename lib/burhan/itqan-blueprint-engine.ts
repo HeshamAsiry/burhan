@@ -193,6 +193,8 @@ export async function buildBurhanItqanBlueprint(input: {
   return {
     style: "burhan_itqan",
     juz: input.juz,
+    level: Math.min(7, Math.max(1, Math.ceil(testNumber * 0.7))),
+    test_type: "non_cumulative",
     test_number: testNumber,
     question_count: Math.min(questionCount, questions.length),
     config: {
