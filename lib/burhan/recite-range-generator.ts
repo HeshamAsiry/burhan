@@ -15,7 +15,7 @@ type RangeEndpoint = {
 };
 
 function buildPromptFragment(text: string, side: "start" | "end", maxWords = 6) {
-  const words = text.trim().split(/\\s+/).filter(Boolean);
+  const words = text.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return text;
 
   const count = Math.min(maxWords, words.length);
