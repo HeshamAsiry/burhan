@@ -287,6 +287,27 @@ export function evaluateQuestion(question: {
     };
   }
 
+  if (question.question_type === "fragment_recall") {
+    const expectedText = typeof expected.answer_text === "string" ? expected.answer_text : "";
+    const answerText = normalizeAnswerText(answer);
+    const comparison = compareRecitation(expectedText, answerText);
+    return {
+      question_id: question.id,
+      question_type: question.question_type,
+      score: comparison.score,
+      status: statusForScore(comparison.score),
+      feedback: {
+        ...comparison,
+        details: [{
+          mode: expected.mode ?? null,
+          fragment: expected.fragment ?? null,
+          surah_id: expected.surah_id ?? null,
+          ayah_number: expected.ayah_number ?? null,
+        }],
+      },
+    };
+  }
+
   if (question.question_type === "mcq") {
     const suppliedOption = typeof answer === "string"
       ? answer
