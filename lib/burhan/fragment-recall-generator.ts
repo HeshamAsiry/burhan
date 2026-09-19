@@ -24,21 +24,29 @@ export type FragmentRecallQuestion = {
   };
 };
 
+const WEAK_ANCHOR_WORDS = new Set([
+  "و", "ف", "ب", "ك", "ل", "ال", "من", "إلى", "عن", "على", "في", "ما", "مِن", "إِن",
+  "إن", "أن", "أو", "لا", "لم", "لن", "قد", "ثم", "هو", "هي", "هم", "هن", "هذا", "هذه",
+  "ذلك", "تلك", "الذي", "التي", "قال", "قالوا", "كان", "كانت", "يكون", "يوم", "كل",
+]);
+
 function words(text: string) {
   return text.trim().split(/\s+/u).filter(Boolean);
 }
 
-function locateFragment(source: string, fragment: string) {
-  const sourceWords = words(source);
-  const fragmentWords = words(fragment);
-  if (!fragmentWords.length) return -1;
-  const normalizedSource = sourceWords.map((word) => normalizeArabic(word));
-  const normalizedFragment = fragmentWords.map((word) => normalizeArabic(word));
+function normalizedWords(text: string) {
+  return words(text).map((word) => normalizeArabic(word));
+}
 
-  for (let index = 0; index <= normalizedSource.length - normalizedFragment.length; index++) {
+function locateFragment(source: string, fragment: string) {
+  const sourceWords = normalizedWords(source);
+  const fragmentWords = normalizedWords(fragment);
+  if (!fragmentWords.length) return -1;
+
+  for (let index = 0; index <= sourceWords.length - fragmentWords.length; index++) {
     let matched = true;
-    for (let offset = 0; offset < normalizedFragment.length; offset++) {
-      if (normalizedSource[index + offset] !== normalizedFragment[offset]) {
+    for (let offset = 0; offset < fragmentWords.length; offset++) {
+      if (sourceWords[index + offset] !== fragmentWords[offset]) {
         matched = false;
         break;
       }
@@ -46,6 +54,22 @@ function locateFragment(source: string, fragment: string) {
     if (matched) return index;
   }
   return -1;
+}
+
+function buildContextFragment(sourceWords: string[], startIndex: number, length = 4) {
+  const end = Math.min(sourceWords.length, startIndex + length);
+  return sourceWords.slice(startIndex, end).join(" ");
+}
+
+function isWeakSingleWord(word: string) {
+  return WEAK_ANCHOR_WORDS.has(normalizeArabic(word));
+}
+
+function fragmentPrompt(mode: FragmentRecallMode, fragment: string) {
+  if (mode === "word") {
+    return `أكمل ابتداءً من قوله تعالى: «${fragment}»`;
+  }
+  return `أكمل ابتداءً من قوله تعالى: «${fragment}»`;
 }
 
 export async function generateFragmentRecallQuestion(input: {
@@ -90,13 +114,14 @@ export async function generateFragmentRecallQuestion(input: {
     if (surahError) throw new Error(surahError.message);
     if (!surah) throw new Error(`Surah not found: ${input.surahId}`);
 
+    const fragment = buildContextFragment(sourceWords, 0, Math.min(4, sourceWords.length));
     const answerText = `${source} ${String(nextAyah.text_ar)}`;
     return {
       question_type: "fragment_recall",
-      prompt: `أكمل الآية، ثم اذكر الآية التالية، واذكر اسم السورة، ابتداءً من: «${sourceWords.slice(0, Math.min(4, sourceWords.length)).join(" ")}…»`,
+      prompt: `أكمل الآية، ثم اذكر الآية التالية، واذكر اسم السورة، ابتداءً من: «${fragment}…»`,
       expected_answer: {
         mode: "ayah_and_next",
-        fragment: sourceWords.slice(0, Math.min(4, sourceWords.length)).join(" "),
+        fragment,
         surah_id: Number(data.surah_id),
         ayah_number: Number(data.ayah_number),
         answer_text: answerText,
@@ -107,23 +132,42 @@ export async function generateFragmentRecallQuestion(input: {
       },
       difficulty: 4,
       metadata: {
-        fragment_word_count: Math.min(4, sourceWords.length),
+        fragment_word_count: words(fragment).length,
         juz_number: data.juz_number == null ? null : Number(data.juz_number),
       },
     };
   }
 
-  const requestedWords =
-    input.fragment?.trim() ||
-    (input.mode === "word"
-      ? sourceWords[Math.min(1, sourceWords.length - 1)]
-      : sourceWords.slice(1, Math.min(5, sourceWords.length)).join(" "));
+  let requestedFragment = input.fragment?.trim();
 
-  const startIndex = locateFragment(source, requestedWords);
-  if (startIndex < 0) throw new Error(`Fragment not found in target ayah: ${requestedWords}`);
+  if (!requestedFragment) {
+    const defaultStart = Math.min(1, Math.max(0, sourceWords.length - 1));
+    requestedFragment = buildContextFragment(
+      sourceWords,
+      defaultStart,
+      input.mode === "word" ? 4 : 4,
+    );
+  }
+
+  const requestedWords = words(requestedFragment);
+  const startIndex = locateFragment(source, requestedFragment);
+  if (startIndex < 0) throw new Error(`Fragment not found in target ayah: ${requestedFragment}`);
+
+  // A single generic word is too weak for a memorization test. Expand it to a
+  // distinctive 3–5 word Quranic anchor even when a caller supplied one word.
+  if (input.mode === "word" && requestedWords.length === 1) {
+    if (isWeakSingleWord(requestedWords[0]) || sourceWords.length - startIndex < 3) {
+      requestedFragment = buildContextFragment(sourceWords, Math.max(0, startIndex - 1), 4);
+    } else {
+      requestedFragment = buildContextFragment(sourceWords, startIndex, 4);
+    }
+  }
+
+  const effectiveStartIndex = locateFragment(source, requestedFragment);
+  if (effectiveStartIndex < 0) throw new Error(`Unable to resolve recall anchor: ${requestedFragment}`);
 
   const ayahsAfter = Math.max(0, Math.min(5, input.ayahsAfter ?? 0));
-  let answerWords = sourceWords.slice(startIndex);
+  let answerWords = sourceWords.slice(effectiveStartIndex);
 
   if (ayahsAfter > 0) {
     const { data: following, error: followingError } = await db
@@ -138,15 +182,11 @@ export async function generateFragmentRecallQuestion(input: {
     for (const ayah of following ?? []) answerWords = [...answerWords, ...words(String(ayah.text_ar))];
   }
 
-  const fragment = sourceWords
-    .slice(startIndex, startIndex + (input.mode === "word" ? 1 : Math.min(5, sourceWords.length - startIndex)))
-    .join(" ");
+  const fragment = words(requestedFragment).slice(0, 5).join(" ");
 
   return {
     question_type: "fragment_recall",
-    prompt: input.mode === "word"
-      ? `أكمل ابتداءً من كلمة: «${fragment}»`
-      : `أكمل ابتداءً من قوله تعالى: «${fragment}»`,
+    prompt: fragmentPrompt(input.mode, fragment),
     expected_answer: {
       mode: input.mode,
       fragment,
@@ -155,7 +195,7 @@ export async function generateFragmentRecallQuestion(input: {
       answer_text: answerWords.join(" "),
       source_ayah: source,
     },
-    difficulty: input.mode === "word" ? 2 : 4,
+    difficulty: input.mode === "word" ? 3 : 4,
     metadata: {
       fragment_word_count: words(fragment).length,
       juz_number: data.juz_number == null ? null : Number(data.juz_number),
@@ -174,43 +214,79 @@ export async function generateAutoFragmentRecallCandidates(input: {
     .select("surah_id,ayah_number,text_ar,juz_number")
     .eq("juz_number", input.juz)
     .order("surah_id", { ascending: true })
-    .order("ayah_number", { ascending: true })
-    .limit(250);
+    .order("ayah_number", { ascending: true });
 
   if (error) throw new Error(error.message);
 
-  const candidates = (data ?? []).flatMap((ayah) => {
-    const text = String(ayah.text_ar);
-    const sourceWords = words(text);
-    if (sourceWords.length < 2) return [];
+  const ayahs = data ?? [];
+  const phraseCounts = new Map<string, number>();
+
+  // Count short Quranic phrases inside the selected Juz. We only keep anchors
+  // that occur once, which makes the prompt much more discriminative than a
+  // generic word such as "إلى" or "نَجْعَلِ".
+  for (const ayah of ayahs) {
+    const sourceWords = words(String(ayah.text_ar));
+    const normalized = sourceWords.map((word) => normalizeArabic(word));
+    for (let size = 3; size <= 5; size++) {
+      for (let index = 0; index + size <= normalized.length; index++) {
+        const phrase = normalized.slice(index, index + size).join(" ");
+        phraseCounts.set(phrase, (phraseCounts.get(phrase) ?? 0) + 1);
+      }
+    }
+  }
+
+  const candidates = ayahs.flatMap((ayah) => {
+    const sourceWords = words(String(ayah.text_ar));
+    if (sourceWords.length < 3) return [];
 
     if (input.mode === "ayah_and_next") {
       return [{
         surah_id: Number(ayah.surah_id),
         ayah_number: Number(ayah.ayah_number),
-        fragment: sourceWords.slice(0, Math.min(4, sourceWords.length)).join(" "),
+        fragment: buildContextFragment(sourceWords, 0, Math.min(4, sourceWords.length)),
       }];
     }
 
-    if (input.mode === "word") {
-      const indices = [1, 2].filter(
-        (index) => index < sourceWords.length && sourceWords.length - index >= 3,
-      );
-      return indices.slice(0, 2).map((index) => ({
-        surah_id: Number(ayah.surah_id),
-        ayah_number: Number(ayah.ayah_number),
-        fragment: sourceWords[index],
-      }));
+    const minSize = input.mode === "word" ? 3 : 4;
+    const maxSize = input.mode === "word" ? 4 : 5;
+    const result: Array<{ surah_id: number; ayah_number: number; fragment: string }> = [];
+
+    for (let size = minSize; size <= maxSize; size++) {
+      for (let index = 0; index + size <= sourceWords.length; index++) {
+        const normalizedFirst = normalizeArabic(sourceWords[index]);
+        const normalizedPhrase = sourceWords
+          .slice(index, index + size)
+          .map((word) => normalizeArabic(word))
+          .join(" ");
+
+        if (isWeakSingleWord(sourceWords[index])) continue;
+        if ((phraseCounts.get(normalizedPhrase) ?? 0) !== 1) continue;
+
+        result.push({
+          surah_id: Number(ayah.surah_id),
+          ayah_number: Number(ayah.ayah_number),
+          fragment: sourceWords.slice(index, index + size).join(" "),
+        });
+      }
     }
 
-    return [1, 2]
-      .filter((index) => sourceWords.length - index >= 6)
-      .map((index) => ({
-        surah_id: Number(ayah.surah_id),
-        ayah_number: Number(ayah.ayah_number),
-        fragment: sourceWords.slice(index, index + 4).join(" "),
-      }));
+    return result;
   });
 
-  return candidates.slice(0, input.limit ?? 40);
+  // Prefer compact, distinctive anchors; longer phrases are slightly stronger,
+  // while keeping the generated prompts natural for students.
+  const unique = new Map<string, (typeof candidates)[number]>();
+  for (const candidate of candidates) {
+    const key = `${candidate.surah_id}:${candidate.ayah_number}:${normalizeArabic(candidate.fragment)}`;
+    if (!unique.has(key)) unique.set(key, candidate);
+  }
+
+  const sorted = [...unique.values()].sort((a, b) => {
+    const aLength = words(a.fragment).length;
+    const bLength = words(b.fragment).length;
+    if (aLength !== bLength) return bLength - aLength;
+    return a.ayah_number - b.ayah_number;
+  });
+
+  return sorted.slice(0, input.limit ?? 40);
 }
