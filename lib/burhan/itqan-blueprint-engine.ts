@@ -43,20 +43,46 @@ async function getAyahs(juz: number) {
   return (data ?? []) as Ayah[];
 }
 
-function buildRanges(ayahs: Ayah[], count: number, length: number, offset: number) {
-  const usable = ayahs.filter((_, index) => index + length <= ayahs.length);
-  return pickEvenly(usable, count, offset).map((start) => {
-    const index = ayahs.findIndex((ayah) => ayah.surah_id === start.surah_id && ayah.ayah_number === start.ayah_number);
-    const end = ayahs[index + length - 1];
+function buildRanges(ayahs: Ayah[], count: number, minLength: number, maxLength: number, offset: number) {
+  const usable = ayahs.filter((_, index) => index + minLength <= ayahs.length);
+
+  return pickEvenly(usable, count, offset).map((start, rangeIndex) => {
+    const startIndex = ayahs.findIndex(
+      (ayah) => ayah.surah_id === start.surah_id && ayah.ayah_number === start.ayah_number,
+    );
+
+    // In short-surah Juzs (especially Juz 30), do not force the test to stop
+    // at a surah boundary. Vary the length so a passage can start/end inside
+    // different surahs and naturally span 2–3 surahs.
+    const span = Math.min(
+      maxLength,
+      Math.max(minLength, minLength + ((rangeIndex + offset) % Math.max(1, maxLength - minLength + 1))),
+    );
+    const end = ayahs[startIndex + span - 1];
+
     if (!end) throw new Error("Unable to resolve Burhan Al-Itqan recitation range.");
     return { type: "recite_range" as const, start, end };
   });
 }
 
-function rangeLengthForTest(testNumber: number) {
-  // The requested style is a real memorization passage, not a one/two-ayah continuation.
-  // Increase the passage gradually while keeping short tests practical.
-  return Math.min(10, 5 + Math.floor((testNumber - 1) / 2));
+function rangeProfileForJuz(juz: number, ayahCount: number) {
+  // Juzs dominated by short surahs need longer cross-surah passages.
+  // This intentionally permits:
+  // - start in the middle of a surah -> continue across one or more surahs -> stop mid-surah
+  // - start near the end of a surah -> continue into the next surah -> stop mid-surah
+  const shortSurahHeavy = juz === 30 || ayahCount < 120;
+
+  if (shortSurahHeavy) {
+    return {
+      minLength: 12,
+      maxLength: Math.min(24, Math.max(12, ayahCount - 1)),
+    };
+  }
+
+  return {
+    minLength: 7,
+    maxLength: Math.min(14, Math.max(7, ayahCount - 1)),
+  };
 }
 
 export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber: number; questionCount?: number }) {
@@ -77,7 +103,7 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   if (!ayahs.length) throw new Error("No ayahs found for the selected Juz.");
   if (!mutashabihat.length && preset.mutashabihat) throw new Error("No repeated Quran anchors found for the selected Juz.");
 
-  const rangeLength = rangeLengthForTest(testNumber);
+  const rangeProfile = rangeProfileForJuz(input.juz, ayahs.length);
   const reciteCount = Math.max(1, Math.round((preset.recite ?? 0) * scale));
   const wordCount = Math.max(0, Math.round((preset.word ?? 0) * scale));
   const sentenceCount = Math.max(0, Math.round((preset.sentence ?? 0) * scale));
@@ -86,7 +112,7 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   const mcqCount = Math.max(0, Math.round((preset.mcq ?? 0) * scale));
 
   const questions: ItqanQuestionSpec[] = [
-    ...buildRanges(ayahs, reciteCount, Math.min(rangeLength, Math.max(2, ayahs.length)), testNumber - 1),
+    ...buildRanges(ayahs, reciteCount, rangeProfile.minLength, rangeProfile.maxLength, testNumber - 1),
     ...pickEvenly(words, wordCount, testNumber).map((candidate) => ({
       type: "fragment_recall" as const, mode: "word" as const,
       surah_id: candidate.surah_id, ayah_number: candidate.ayah_number, fragment: candidate.fragment, ayahs_after: 0,
@@ -122,8 +148,10 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
     config: {
       methodology: "graded Quran memorization testing inspired by the publicly described Burhan Al-Itqan methodology",
       test_number: testNumber,
-      range_length: rangeLength,
+      range_length: rangeProfile,
       range_length_unit: "ayahs_inclusive",
+      cross_surah_ranges: true,
+      short_surah_strategy: "variable_length_cross_surah",
       question_mix: { recite_range: reciteCount, word: wordCount, sentence: sentenceCount, ayah_and_next: ayahNextCount, mutashabihat: mutashabihatCount, mcq: mcqCount },
       cumulative: false,
       source_scope: `juz_${input.juz}`,
