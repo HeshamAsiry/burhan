@@ -67,6 +67,7 @@ export async function generateTest(input: {
       });
   const specs = input.questions?.length ? input.questions : blueprint?.questions;
   if (!specs?.length) throw new Error("At least one question is required.");
+  const effectiveLevel = input.style === "burhan_itqan" && blueprint?.level != null ? blueprint.level : input.level;
 
   const generated = [];
   for (const spec of specs) {
@@ -126,7 +127,7 @@ export async function generateTest(input: {
     return {
       id: crypto.randomUUID(),
       status: "generated",
-      level: input.level,
+      level: effectiveLevel,
       test_type: input.testType ?? "custom",
       juz: input.juz,
       style: input.style ?? "default",
@@ -163,7 +164,7 @@ export async function generateTest(input: {
     .from("tests")
     .insert({
       status: "generated",
-      level: input.level,
+      level: effectiveLevel,
       test_type: input.testType ?? "custom",
       juz_number: input.juz,
       blueprint_id: blueprintId,
