@@ -240,6 +240,15 @@ export async function generateAutoFragmentRecallCandidates(input: {
     if (sourceWords.length < 3) return [];
 
     if (input.mode === "ayah_and_next") {
+      // This mode requires a real following ayah. Exclude the final ayah of
+      // every surah so generation never produces an impossible prompt.
+      const hasFollowingAyah = ayahs.some(
+        (candidate) =>
+          Number(candidate.surah_id) === Number(ayah.surah_id) &&
+          Number(candidate.ayah_number) === Number(ayah.ayah_number) + 1,
+      );
+      if (!hasFollowingAyah) return [];
+
       return [{
         surah_id: Number(ayah.surah_id),
         ayah_number: Number(ayah.ayah_number),
