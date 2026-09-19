@@ -144,8 +144,8 @@ export async function generateReciteRangeQuestion(input: {
     transitionDistance: last.page_number && first.page_number ? last.page_number - first.page_number : 0,
   });
 
-  const startFragment = buildPromptFragment(first.text_ar, "start");
-  const endFragment = buildPromptFragment(last.text_ar, "end");
+  const startFragment = buildPromptFragment(start.anchor ?? first.text_ar, "start");
+  const endFragment = buildPromptFragment(end.anchor ?? last.text_ar, "end");
   const startLabel = `قوله تعالى: «${startFragment}»`;
   const endLabel = `قوله تعالى: «${endFragment}»`;
 
