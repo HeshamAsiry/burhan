@@ -25,7 +25,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          BURHAN_API_KEY: ${{ secrets.BURHAN_API_KEY }}
+          BURHAN_API_KEY: self-test-only-key
       - name: Start Burhan API
         run: |
           nohup npm start > /tmp/burhan-api.log 2>&1 &
@@ -40,7 +40,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          BURHAN_API_KEY: ${{ secrets.BURHAN_API_KEY }}
+          BURHAN_API_KEY: self-test-only-key
       - name: Generate Burhan Al-Itqan style test
         run: |
           set -o pipefail
@@ -61,7 +61,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          BURHAN_API_KEY: ${{ secrets.BURHAN_API_KEY }}
+          BURHAN_API_KEY: self-test-only-key
       - name: Upload response
         uses: actions/upload-artifact@v4
         with:
