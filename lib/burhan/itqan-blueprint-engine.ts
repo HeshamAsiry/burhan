@@ -33,6 +33,7 @@ export type ItqanQuestionSpec =
       threshold: number;
       limit: number;
       juz: number;
+      generation_engine?: "default" | "itqan_local";
     }
   | {
       type: "mcq";
