@@ -105,12 +105,19 @@ export async function generateItqanMutashabihatQuestion(input: {
     similarityGroupSize: target.occurrences.length,
   });
 
-  const countLabel = required === "all" ? "جميع المواضع" : String(selected.length) + " مواضع";
+  const countLabel =
+    required === "all"
+      ? "جميع المواضع"
+      : selected.length === 1
+        ? "موضعًا واحدًا"
+        : selected.length === 2
+          ? "موضعين"
+          : String(selected.length) + " مواضع";
   const afterLabel = after === 0 ? "الآية" : "الآية وما بعدها";
 
   return {
     question_type: "mutashabihat" as const,
-    prompt: "اذكر " + countLabel + " التي ورد فيها: «" + target.anchor + "»، واذكر " + afterLabel,
+    prompt: "اذكر " + countLabel + " ورد فيها: «" + target.anchor + "»، واذكر " + afterLabel,
     expected_answer: {
       anchor: target.anchor,
       occurrences_required: required,
