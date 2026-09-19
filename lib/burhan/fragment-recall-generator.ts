@@ -149,21 +149,23 @@ export async function generateAutoFragmentRecallCandidates(input: {
     if (sourceWords.length < 2) return [];
 
     if (input.mode === "word") {
-      return [1, Math.min(2, sourceWords.length - 1)].map((index) => ({
+      const indices = [1, 2].filter(
+        (index) => index < sourceWords.length && sourceWords.length - index >= 3,
+      );
+      return indices.slice(0, 2).map((index) => ({
         surah_id: Number(ayah.surah_id),
         ayah_number: Number(ayah.ayah_number),
         fragment: sourceWords[index],
       }));
     }
 
-    return [1, 2].map((index) => {
-      const length = Math.min(4, sourceWords.length - index);
-      return {
+    return [1, 2]
+      .filter((index) => sourceWords.length - index >= 6)
+      .map((index) => ({
         surah_id: Number(ayah.surah_id),
         ayah_number: Number(ayah.ayah_number),
-        fragment: sourceWords.slice(index, index + length).join(" "),
-      };
-    });
+        fragment: sourceWords.slice(index, index + 4).join(" "),
+      }));
   });
 
   return candidates.slice(0, input.limit ?? 40);
