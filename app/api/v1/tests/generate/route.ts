@@ -10,7 +10,7 @@ const endpoint = z.object({
 
 const fragmentRecall = z.object({
   type: z.literal("fragment_recall"),
-  mode: z.enum(["word", "sentence"]),
+  mode: z.enum(["word", "sentence", "ayah_and_next"]),
   surah_id: z.number().int().min(1).max(114),
   ayah_number: z.number().int().min(1),
   fragment: z.string().min(1).max(120),
