@@ -5,13 +5,16 @@ import { generateIdentifySurahQuestion } from "./identify-surah-generator";
 import { generateSurahMcqQuestion } from "./mcq-generator";
 import { generateReciteRangeQuestion } from "./recite-range-generator";
 import { buildTestBlueprint } from "./blueprint-engine";
+import { buildBurhanItqanBlueprint } from "./itqan-blueprint-engine";
+import { generateFragmentRecallQuestion } from "./fragment-recall-generator";
 
 export type TestQuestionSpec =
   | { type: "mcq"; anchor?: string; surah_id?: number; ayah_number?: number }
   | { type: "identify_surah"; anchor?: string; surah_id?: number; ayah_number?: number }
   | { type: "anchor_recall"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; juz_min?: number; juz_max?: number; include_surah?: boolean }
   | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
-  | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } };
+  | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } }
+  | { type: "fragment_recall"; mode: "word" | "sentence"; surah_id: number; ayah_number: number; fragment: string; ayahs_after?: number };
 
 function publicQuestion(question: any) {
   const base = {
@@ -44,13 +47,17 @@ export async function generateTest(input: {
   testType?: string;
   questions?: TestQuestionSpec[];
   questionCount?: number;
+  style?: "default" | "burhan_itqan";
+  testNumber?: number;
   progression?: "from_30_to_1" | "from_1_to_30";
   includeAnswers?: boolean;
   persist?: boolean;
 }) {
   const blueprint = input.questions?.length
     ? null
-    : await buildTestBlueprint({
+    : input.style === "burhan_itqan"
+      ? await buildBurhanItqanBlueprint({ juz: input.juz, testNumber: input.testNumber ?? 1, questionCount: input.questionCount })
+      : await buildTestBlueprint({
         juz: input.juz,
         level: input.level as 1 | 2 | 3 | 4 | 5 | 6 | 7,
         testType: (input.testType as "non_cumulative" | "cumulative" | "custom" | undefined),
@@ -92,6 +99,14 @@ export async function generateTest(input: {
         limit: spec.limit,
         juz: spec.juz ?? input.juz,
       }));
+    } else if (spec.type === "fragment_recall") {
+      generated.push(await generateFragmentRecallQuestion({
+        mode: spec.mode,
+        surahId: spec.surah_id,
+        ayahNumber: spec.ayah_number,
+        fragment: spec.fragment,
+        ayahsAfter: spec.ayahs_after,
+      }));
     } else {
       generated.push(await generateReciteRangeQuestion(spec));
     }
@@ -104,6 +119,8 @@ export async function generateTest(input: {
       level: input.level,
       test_type: input.testType ?? "custom",
       juz: input.juz,
+      style: input.style ?? "default",
+      test_number: input.style === "burhan_itqan" ? input.testNumber ?? 1 : null,
       blueprint,
       questions: input.includeAnswers ? generated : generated.map((question) => publicQuestion(question)),
     };
@@ -140,7 +157,7 @@ export async function generateTest(input: {
       test_type: input.testType ?? "custom",
       juz_number: input.juz,
       blueprint_id: blueprintId,
-      config: { question_count: generated.length, generated_by: "burhan-v1" },
+      config: { question_count: generated.length, generated_by: "burhan-v1", style: input.style ?? "default", test_number: input.style === "burhan_itqan" ? input.testNumber ?? 1 : null },
     })
     .select("id,status,level,test_type,juz_number")
     .single();
