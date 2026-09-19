@@ -15,7 +15,7 @@ export type TestQuestionSpec =
   | { type: "anchor_recall"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; juz_min?: number; juz_max?: number; include_surah?: boolean }
   | { type: "mutashabihat"; anchor: string; occurrences_required?: number | "all"; ayahs_after?: number; threshold?: number; limit?: number; juz?: number }
   | { type: "recite_range"; start: { surah_id: number; ayah_number: number; anchor?: string }; end: { surah_id: number; ayah_number: number; anchor?: string } }
-  | { type: "fragment_recall"; mode: "word" | "sentence"; surah_id: number; ayah_number: number; fragment: string; ayahs_after?: number };
+  | { type: "fragment_recall"; mode: "word" | "sentence" | "ayah_and_next"; surah_id: number; ayah_number: number; fragment: string; ayahs_after?: number };
 
 function publicQuestion(question: any) {
   const base = {
