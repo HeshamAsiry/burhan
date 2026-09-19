@@ -69,3 +69,5 @@ jobs:
           path: |
             api-response.json
             /tmp/burhan-api.log
+
+# latest verification trigger
