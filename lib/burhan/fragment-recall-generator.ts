@@ -109,7 +109,7 @@ export async function generateFragmentRecallQuestion(input: {
     question_type: "fragment_recall",
     prompt:
       input.mode === "word"
-        ? `أكمل ابتداءً من كلمة قوله تعالى: «${fragment}»`
+        ? `أكمل ابتداءً من كلمة: «${fragment}»`
         : `أكمل ابتداءً من قوله تعالى: «${fragment}»`,
     expected_answer: {
       mode: input.mode,
