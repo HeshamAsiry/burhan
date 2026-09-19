@@ -7,6 +7,7 @@ import { generateReciteRangeQuestion } from "./recite-range-generator";
 import { buildTestBlueprint } from "./blueprint-engine";
 import { buildBurhanItqanBlueprint } from "./itqan-blueprint-engine";
 import { generateFragmentRecallQuestion } from "./fragment-recall-generator";
+import { generateItqanMutashabihatQuestion } from "./itqan-mutashabihat-generator";
 
 export type TestQuestionSpec =
   | { type: "mcq"; anchor?: string; surah_id?: number; ayah_number?: number }
@@ -91,14 +92,23 @@ export async function generateTest(input: {
         includeSurah: spec.include_surah,
       }));
     } else if (spec.type === "mutashabihat") {
-      generated.push(await generateMutashabihatQuestion({
-        anchor: spec.anchor,
-        occurrencesRequired: spec.occurrences_required,
-        ayahsAfter: spec.ayahs_after,
-        threshold: spec.threshold,
-        limit: spec.limit,
-        juz: spec.juz ?? input.juz,
-      }));
+      if ("generation_engine" in spec && spec.generation_engine === "itqan_local") {
+        generated.push(await generateItqanMutashabihatQuestion({
+          anchor: spec.anchor,
+          juz: spec.juz ?? input.juz,
+          occurrencesRequired: spec.occurrences_required,
+          ayahsAfter: spec.ayahs_after,
+        }));
+      } else {
+        generated.push(await generateMutashabihatQuestion({
+          anchor: spec.anchor,
+          occurrencesRequired: spec.occurrences_required,
+          ayahsAfter: spec.ayahs_after,
+          threshold: spec.threshold,
+          limit: spec.limit,
+          juz: spec.juz ?? input.juz,
+        }));
+      }
     } else if (spec.type === "fragment_recall") {
       generated.push(await generateFragmentRecallQuestion({
         mode: spec.mode,
