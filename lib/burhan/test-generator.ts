@@ -71,7 +71,7 @@ export async function generateTest(input: {
   for (const spec of specs) {
     if (spec.type === "mcq") {
       generated.push(await generateSurahMcqQuestion({
-        anchor: spec.anchor,
+        anchor: "anchor" in spec ? spec.anchor : undefined,
         surahId: spec.surah_id,
         ayahNumber: spec.ayah_number,
       }));
