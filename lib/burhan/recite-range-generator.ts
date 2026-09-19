@@ -121,12 +121,12 @@ export async function generateReciteRangeQuestion(input: {
     transitionDistance: last.page_number && first.page_number ? last.page_number - first.page_number : 0,
   });
 
-  const startLabel = start.anchor ? `«${start.anchor}»` : `الآية ${start.surah_id}:${start.ayah_number}`;
-  const endLabel = end.anchor ? `«${end.anchor}»` : `الآية ${end.surah_id}:${end.ayah_number}`;
+  const startLabel = `قوله تعالى: «${first.text_ar}»`;
+  const endLabel = `قوله تعالى: «${last.text_ar}»`;
 
   return {
     question_type: "recite_range",
-    prompt: `ابدأ من ${startLabel} وأكمل حتى ${endLabel}`,
+    prompt: `ابدأ من ${startLabel} حتى ${endLabel}`,
     expected_answer: {
       start,
       end,
