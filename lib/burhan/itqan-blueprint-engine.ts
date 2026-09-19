@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "../supabase-admin";
 import { generateAutoFragmentRecallCandidates, type FragmentRecallMode } from "./fragment-recall-generator";
+import { getItqanMutashabihatCandidates } from "./itqan-mutashabihat-generator";
 
 export type ItqanQuestionSpec =
   | {
@@ -40,16 +41,16 @@ export type ItqanQuestionSpec =
     };
 
 const PRESETS: Record<number, Record<string, number>> = {
-  1: { recite: 4, word: 3, sentence: 1, anchor: 1, mcq: 1 },
-  2: { recite: 4, word: 2, sentence: 2, anchor: 1, mcq: 1 },
-  3: { recite: 3, word: 2, sentence: 2, mutashabihat: 1, anchor: 1, mcq: 1 },
+  1: { recite: 4, word: 3, sentence: 2, mcq: 1 },
+  2: { recite: 4, word: 2, sentence: 2, mutashabihat: 1, mcq: 1 },
+  3: { recite: 3, word: 2, sentence: 2, mutashabihat: 2, mcq: 1 },
   4: { recite: 3, word: 2, sentence: 2, mutashabihat: 2, mcq: 1 },
-  5: { recite: 3, word: 1, sentence: 2, mutashabihat: 2, anchor: 1, mcq: 1 },
-  6: { recite: 3, word: 1, sentence: 2, mutashabihat: 2, anchor: 1, mcq: 1 },
-  7: { recite: 2, word: 1, sentence: 2, mutashabihat: 3, anchor: 1, mcq: 1 },
-  8: { recite: 2, word: 1, sentence: 2, mutashabihat: 3, anchor: 1, mcq: 1 },
-  9: { recite: 2, word: 1, sentence: 2, mutashabihat: 3, anchor: 1, mcq: 1 },
-  10: { recite: 2, word: 1, sentence: 2, mutashabihat: 3, anchor: 1, mcq: 1 },
+  5: { recite: 3, word: 1, sentence: 2, mutashabihat: 3, mcq: 1 },
+  6: { recite: 3, word: 1, sentence: 2, mutashabihat: 3, mcq: 1 },
+  7: { recite: 2, word: 1, sentence: 2, mutashabihat: 4, mcq: 1 },
+  8: { recite: 2, word: 1, sentence: 2, mutashabihat: 4, mcq: 1 },
+  9: { recite: 2, word: 1, sentence: 2, mutashabihat: 4, mcq: 1 },
+  10: { recite: 2, word: 1, sentence: 2, mutashabihat: 4, mcq: 1 },
 };
 
 type Ayah = {
@@ -83,22 +84,6 @@ async function getAyahs(juz: number) {
   return (data ?? []) as Ayah[];
 }
 
-async function getRepeatedAnchors(juz: number, limit = 100) {
-  const db = getSupabaseAdmin();
-  const { data, error } = await db.rpc("burhan_blueprint_anchor_candidates", {
-    p_juz: juz,
-    p_limit: limit,
-    p_cumulative: false,
-    p_progression: "from_30_to_1",
-  });
-
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).filter(
-    (candidate: Candidate) => candidate.occurrence_count >= 2,
-  ) as Candidate[];
-}
-
 function buildRanges(ayahs: Ayah[], count: number, length: number, offset: number) {
   const usable = ayahs.filter((_, index) => index + length <= ayahs.length);
   return pickEvenly(usable, count, offset).map((start) => {
@@ -126,17 +111,15 @@ export async function buildBurhanItqanBlueprint(input: {
   const totalPreset = Object.values(preset).reduce((sum, value) => sum + value, 0);
   const scale = questionCount / totalPreset;
 
-  const [ayahs, anchors, words, sentences] = await Promise.all([
+  const [ayahs, words, sentences, mutashabihat] = await Promise.all([
     getAyahs(input.juz),
-    getRepeatedAnchors(input.juz),
     generateAutoFragmentRecallCandidates({ juz: input.juz, mode: "word", limit: 80 }),
     generateAutoFragmentRecallCandidates({ juz: input.juz, mode: "sentence", limit: 80 }),
+    getItqanMutashabihatCandidates(input.juz, 80),
   ]);
 
   if (!ayahs.length) throw new Error("No ayahs found for the selected Juz.");
-  if (!anchors.length && (preset.mutashabihat || preset.anchor)) {
-    throw new Error("No repeated Quran anchors found for the selected Juz.");
-  }
+  if (!mutashabihat.length && preset.mutashabihat) throw new Error("No repeated Quran anchors found for the selected Juz.");
 
   const rangeLength = Math.min(2 + Math.floor((testNumber - 1) / 2), 6);
 
@@ -144,7 +127,6 @@ export async function buildBurhanItqanBlueprint(input: {
   const wordCount = Math.max(0, Math.round((preset.word ?? 0) * scale));
   const sentenceCount = Math.max(0, Math.round((preset.sentence ?? 0) * scale));
   const mutashabihatCount = Math.max(0, Math.round((preset.mutashabihat ?? 0) * scale));
-  const anchorCount = Math.max(0, Math.round((preset.anchor ?? 0) * scale));
   const mcqCount = Math.max(0, Math.round((preset.mcq ?? 0) * scale));
 
   const questions: ItqanQuestionSpec[] = [
@@ -165,23 +147,15 @@ export async function buildBurhanItqanBlueprint(input: {
       fragment: candidate.fragment,
       ayahs_after: testNumber >= 6 ? 1 : 0,
     })),
-    ...pickEvenly(anchors, mutashabihatCount, testNumber + 2).map((candidate) => ({
+    ...pickEvenly(mutashabihat, mutashabihatCount, testNumber + 2).map((candidate) => ({
       type: "mutashabihat" as const,
-      anchor: candidate.text_ar,
-      occurrences_required: testNumber >= 8 ? Math.min(3, candidate.occurrence_count) : 2,
+      anchor: candidate.anchor,
+      occurrences_required: testNumber >= 8 ? Math.min(3, candidate.occurrences.length) : 2,
       ayahs_after: testNumber >= 7 ? 2 : 1,
       threshold: Math.min(0.9, 0.72 + testNumber * 0.015),
-      limit: Math.min(20, Math.max(4, candidate.occurrence_count + 2)),
+      limit: Math.min(20, Math.max(4, candidate.occurrences.length + 2)),
       juz: input.juz,
-    })),
-    ...pickEvenly(anchors, anchorCount, testNumber + 3).map((candidate) => ({
-      type: "anchor_recall" as const,
-      anchor: candidate.text_ar,
-      occurrences_required: testNumber >= 7 ? Math.min(3, candidate.occurrence_count) : 1,
-      ayahs_after: testNumber >= 6 ? 2 : 1,
-      juz_min: input.juz,
-      juz_max: input.juz,
-      include_surah: testNumber >= 6,
+      generation_engine: "itqan_local" as const,
     })),
     ...pickEvenly(ayahs, mcqCount, testNumber + 4).map((ayah) => ({
       type: "mcq" as const,
@@ -206,7 +180,6 @@ export async function buildBurhanItqanBlueprint(input: {
         word: wordCount,
         sentence: sentenceCount,
         mutashabihat: mutashabihatCount,
-        anchor_recall: anchorCount,
         mcq: mcqCount,
       },
       cumulative: false,
