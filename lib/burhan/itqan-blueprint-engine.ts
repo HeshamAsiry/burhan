@@ -261,7 +261,7 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
     })),
     ...pickEvenly(nextAyahs, ayahNextCount, testNumber + 3).map((candidate) => ({
       type: "fragment_recall" as const, mode: "ayah_and_next" as const,
-      surah_id: candidate.surah_id, ayah_number: candidate.ayah_number, fragment: candidate.fragment, ayahs_after: 0,
+      surah_id: candidate.surah_id, ayah_number: candidate.ayah_number, fragment: candidate.fragment, ayahs_after: 3,
     })),
     ...pickEvenly(mutashabihat, mutashabihatCount, testNumber + 2).map((candidate) => ({
       type: "mutashabihat" as const, anchor: candidate.anchor,
