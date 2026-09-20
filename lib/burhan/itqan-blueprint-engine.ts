@@ -250,7 +250,7 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   const mcqCount = 0;
 
   const questions: ItqanQuestionSpec[] = [
-    ...buildRanges(ayahs, reciteCount),
+    ...buildRanges(ayahs, reciteCount, testNumber),
     ...pickEvenly(words, wordCount, testNumber).map((candidate) => ({
       type: "fragment_recall" as const, mode: "word" as const,
       surah_id: candidate.surah_id, ayah_number: candidate.ayah_number, fragment: candidate.fragment, ayahs_after: 0,
