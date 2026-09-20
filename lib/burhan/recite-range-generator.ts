@@ -137,13 +137,12 @@ export async function generateReciteRangeQuestion(input: {
   });
 
   const startFragment = buildPromptFragment(start.anchor ?? first.text_ar, "start");
-  const endFragment = buildPromptFragment(end.anchor ?? last.text_ar, "end");
   const startLabel = `قوله تعالى: «${startFragment}»`;
-  const endLabel = `قوله تعالى: «${endFragment}»`;
+  const followingAyahs = ayahs.length - 1;
 
   return {
     question_type: "recite_range",
-    prompt: `ابدأ من ${startLabel} حتى ${endLabel}`,
+    prompt: `أكمل من ${startLabel} ${followingAyahs} آيات بعدها.`,
     expected_answer: {
       start,
       end,
