@@ -95,15 +95,19 @@ export async function generateFragmentRecallQuestion(input: {
   if (!sourceWords.length) throw new Error("Target ayah has no text.");
 
   if (input.mode === "ayah_and_next") {
-    const { data: nextAyah, error: nextError } = await db
+    const followingCount = Math.max(1, Math.min(3, input.ayahsAfter ?? 3));
+    const { data: followingAyahs, error: followingError } = await db
       .from("ayahs")
       .select("ayah_number,text_ar")
       .eq("surah_id", input.surahId)
-      .eq("ayah_number", input.ayahNumber + 1)
-      .maybeSingle();
+      .gte("ayah_number", input.ayahNumber + 1)
+      .lte("ayah_number", input.ayahNumber + followingCount)
+      .order("ayah_number", { ascending: true });
 
-    if (nextError) throw new Error(nextError.message);
-    if (!nextAyah) throw new Error(`No following ayah found: ${input.surahId}:${input.ayahNumber + 1}`);
+    if (followingError) throw new Error(followingError.message);
+    if (!followingAyahs || followingAyahs.length < followingCount) {
+      throw new Error(`Not enough following ayahs: ${input.surahId}:${input.ayahNumber} requires ${followingCount} following ayahs.`);
+    }
 
     const { data: surah, error: surahError } = await db
       .from("surahs")
@@ -115,10 +119,12 @@ export async function generateFragmentRecallQuestion(input: {
     if (!surah) throw new Error(`Surah not found: ${input.surahId}`);
 
     const fragment = buildContextFragment(sourceWords, 0, Math.min(4, sourceWords.length));
-    const answerText = `${source} ${String(nextAyah.text_ar)}`;
+    const answerText = [source, ...followingAyahs.map((ayah) => String(ayah.text_ar))].join(" ");
+    const lastFollowingAyah = followingAyahs[followingAyahs.length - 1];
+
     return {
       question_type: "fragment_recall",
-      prompt: `أكمل الآية، ثم اذكر الآية التالية، واذكر اسم السورة، ابتداءً من: «${fragment}…»`,
+      prompt: `أكمل الآية، ثم اذكر ${followingCount === 3 ? "ثلاث آيات بعدها" : "الآيات التالية"}، واذكر اسم السورة، ابتداءً من: «${fragment}…»`,
       expected_answer: {
         mode: "ayah_and_next",
         fragment,
@@ -126,8 +132,8 @@ export async function generateFragmentRecallQuestion(input: {
         ayah_number: Number(data.ayah_number),
         answer_text: answerText,
         source_ayah: source,
-        next_ayah: String(nextAyah.text_ar),
-        next_ayah_number: Number(nextAyah.ayah_number),
+        next_ayah: String(followingAyahs[0].text_ar),
+        next_ayah_number: Number(followingAyahs[0].ayah_number),
         surah_name_ar: surah.name_ar,
       },
       difficulty: 4,
