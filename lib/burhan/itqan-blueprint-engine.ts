@@ -227,8 +227,6 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   // Burhan Al-Itqan tests have a fixed 10-question structure.
   const questionCount = 10;
   const preset = PRESETS[testNumber] ?? PRESETS[10];
-  const totalPreset = Object.values(preset).reduce((sum, value) => sum + value, 0);
-  const scale = questionCount / totalPreset;
 
   const [ayahs, words, sentences, nextAyahs, mutashabihat] = await Promise.all([
     getAyahs(input.juz),
