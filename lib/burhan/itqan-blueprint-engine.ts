@@ -224,7 +224,8 @@ function rangeProfileForJuz(testNumber: number, ayahCount: number) {
 
 export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber: number; questionCount?: number }) {
   const testNumber = Math.max(1, Math.min(10, input.testNumber));
-  const questionCount = Math.max(1, Math.min(input.questionCount ?? 10, 50));
+  // Burhan Al-Itqan tests have a fixed 10-question structure.
+  const questionCount = 10;
   const preset = PRESETS[testNumber] ?? PRESETS[10];
   const totalPreset = Object.values(preset).reduce((sum, value) => sum + value, 0);
   const scale = questionCount / totalPreset;
