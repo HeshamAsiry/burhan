@@ -242,12 +242,12 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   if (!mutashabihat.length && preset.mutashabihat) throw new Error("No repeated Quran anchors found for the selected Juz.");
 
   const rangeProfile = rangeProfileForJuz(input.juz, ayahs.length);
-  const reciteCount = Math.max(1, Math.round((preset.recite ?? 0) * scale));
-  const wordCount = Math.max(0, Math.round((preset.word ?? 0) * scale));
-  const sentenceCount = Math.max(0, Math.round((preset.sentence ?? 0) * scale));
-  const ayahNextCount = Math.max(0, Math.round((preset.ayah_next ?? 0) * scale));
-  const mutashabihatCount = Math.max(0, Math.round((preset.mutashabihat ?? 0) * scale));
-  const mcqCount = Math.max(0, Math.round((preset.mcq ?? 0) * scale));
+  const reciteCount = 4;
+  const wordCount = 0;
+  const sentenceCount = 0;
+  const ayahNextCount = 4;
+  const mutashabihatCount = 2;
+  const mcqCount = 0;
 
   const questions: ItqanQuestionSpec[] = [
     ...buildRanges(ayahs, reciteCount),
