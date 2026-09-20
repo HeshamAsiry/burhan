@@ -18,23 +18,15 @@ function buildPromptFragment(text: string, side: "start" | "end", maxWords = 6) 
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return text;
 
+  // Both endpoints identify the ayah by its beginning. For a range question,
+  // the ending anchor must not be taken from the end of the ayah (e.g.
+  // "…فَوْقَكُمْ سَبْعًا شِدَادًا"). The student is being asked to stop when
+  // they reach the ayah that begins "وَبَنَيْنَا فَوْقَكُمْ…".
   const count = Math.min(maxWords, words.length);
-  if (words.length <= count) {
-    const reducedCount = Math.max(1, words.length - 1);
-    const reduced =
-      side === "start"
-        ? words.slice(0, reducedCount).join(" ")
-        : words.slice(words.length - reducedCount).join(" ");
-    if (words.length === 1) return reduced;
-    return side === "start" ? reduced + "…" : "…" + reduced;
-  }
+  const fragment = words.slice(0, count).join(" ");
 
-  const fragment =
-    side === "start"
-      ? words.slice(0, count).join(" ")
-      : words.slice(words.length - count).join(" ");
-
-  return side === "start" ? fragment + "…" : "…" + fragment;
+  if (words.length <= count) return fragment;
+  return fragment + "…";
 }
 
 export type GeneratedReciteRangeQuestion = {
