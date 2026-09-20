@@ -64,3 +64,60 @@ The normalized provider response is expected to contain predicted_phonemes and c
 Madd acoustic measurements can be supplied separately through BURHAN_MADD_ACOUSTIC_PROVIDER_URL; this provider returns occurrence-level duration observations and is the signal used for Madd duration verification. When a dedicated Madd observation is missing, Burhan can derive an acoustic duration from validated phoneme timings aligned to the Madd phoneme span. Set BURHAN_MADD_REFERENCE_HARAKAH_MS on the server to calibrate that measured duration into harakah; without it, the duration is retained as evidence but is not auto-graded.
 
 Never expose service-role keys or provider tokens to browser clients.
+## v1 API contract
+
+Base URL (production): `https://burhan-4iamegla0-airy5.vercel.app`
+
+### Authentication
+All `/api/v1/*` endpoints except `/api/v1/health` require a Burhan API key. Send either:
+
+    Authorization: Bearer <BURHAN_API_KEY>
+
+or:
+
+    X-Burhan-API-Key: <BURHAN_API_KEY>
+
+API keys are stored hashed in `burhan_api_keys`; the raw key must remain server-side and must never be shipped in a browser client.
+
+### Health
+
+    GET /api/v1/health
+
+Returns a lightweight service health response and does not require authentication.
+
+### Generate a test
+
+    POST /api/v1/tests/generate
+
+Example request:
+
+    {
+      "juz": 30,
+      "style": "burhan_itqan",
+      "test_number": 1,
+      "question_count": 10,
+      "persist": true
+    }
+
+For `burhan_itqan`, Burhan generates the question mix from the selected Juz and test number. Recitation ranges preserve Quran order and can cross surah boundaries. Range prompts identify both endpoints by the beginning of their ayahs, e.g. `«وَبَنَيْنَا فَوْقَكُمْ…»`, not by the final words of the ending ayah.
+
+### Retrieve a generated test
+
+    GET /api/v1/tests/:testId
+
+The public test representation returns prompts, positions, question types, difficulty, and MCQ options without exposing the stored expected answers.
+
+### Standard errors
+
+- `401 UNAUTHORIZED` — missing or invalid API key.
+- `429 RATE_LIMITED` — API-key request limit exceeded.
+- `400 INVALID_REQUEST` — request body failed validation.
+- `404 TEST_NOT_FOUND` — requested test does not exist.
+- `500 TEST_GENERATION_ERROR` — generation failed after request validation.
+
+### Production readiness
+
+The current production deployment is connected to `HeshamAsiry/burhan` and deploys from `main`. The health endpoint has been verified with HTTP 200, and protected API routes reject unauthenticated requests with HTTP 401.
+
+The current v1 scope is **test generation and retrieval**. Audio/recitation evaluation remains a separate future layer and is not required by the current test-generation API.
+\n
