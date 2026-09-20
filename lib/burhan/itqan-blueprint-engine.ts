@@ -284,7 +284,10 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
     config: {
       methodology: "graded Quran memorization testing inspired by the publicly described Burhan Al-Itqan methodology",
       test_number: testNumber,
-      range_length: rangeProfile,
+      range_length: {
+        minLength: rangeProfile.minLength,
+        maxLength: rangeProfile.maxLength,
+      },
       range_length_unit: "ayahs_inclusive",
       min_recopy_ayahs: 5,
       max_recopy_ayahs: 30,
