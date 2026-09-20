@@ -136,7 +136,9 @@ export async function generateReciteRangeQuestion(input: {
     transitionDistance: last.page_number && first.page_number ? last.page_number - first.page_number : 0,
   });
 
-  const startFragment = buildPromptFragment(start.anchor ?? first.text_ar, "start");
+  // Generated recitation questions must always identify the starting ayah
+  // from the actual beginning of that ayah, never from an internal anchor.
+  const startFragment = buildPromptFragment(first.text_ar, "start");
   const startLabel = `قوله تعالى: «${startFragment}»`;
   const followingAyahs = ayahs.length - 1;
 
