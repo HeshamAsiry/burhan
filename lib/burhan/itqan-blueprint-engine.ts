@@ -25,11 +25,34 @@ const PRESETS: Record<number, Record<string, number>> = {
 type Ayah = { surah_id: number; ayah_number: number };
 type Candidate = { text_ar: string; normalized_text: string; anchor_type: string; occurrence_count: number };
 
+function secureRandomInt(max: number) {
+  if (max <= 1) return 0;
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.getRandomValues) {
+    const buffer = new Uint32Array(1);
+    cryptoObj.getRandomValues(buffer);
+    return buffer[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+function shuffle<T>(items: T[]) {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 function pickEvenly<T>(items: T[], count: number, offset = 0) {
   if (count <= 0 || !items.length) return [];
-  if (count >= items.length) return items.slice(offset % items.length).concat(items.slice(0, offset % items.length)).slice(0, count);
-  return Array.from({ length: count }, (_, index) => items[(Math.floor(index * items.length / count) + offset) % items.length]);
+  const shuffled = shuffle(items);
+  if (count >= shuffled.length) return shuffled.slice(0, count);
+  const start = secureRandomInt(shuffled.length);
+  return Array.from({ length: count }, (_, index) => shuffled[(start + index) % shuffled.length]);
 }
+
 
 async function getAyahs(juz: number) {
   const db = getSupabaseAdmin();
@@ -122,50 +145,38 @@ function buildCrossSurahRanges(ayahs: Ayah[], count: number, minLength: number, 
   }));
 }
 
-function buildRanges(ayahs: Ayah[], count: number, minLength: number, maxLength: number, offset: number) {
+function buildRanges(ayahs: Ayah[], count: number) {
   if (count <= 0) return [];
 
-  // Cross-surah patterns are preferred so short-surah Juzs (especially Juz 30)
-  // do not collapse into trivial single-surah passages.
-  const crossSurah = buildCrossSurahRanges(ayahs, count, minLength, maxLength, offset);
-  if (crossSurah.length >= count) return crossSurah;
+  // Every recitation question is exactly six consecutive ayahs:
+  // the starting ayah + five ayahs after it.
+  const candidates: Array<{ start: Ayah; end: Ayah }> = [];
 
-  // Fallback: preserve contiguous Quran order when there are not enough
-  // structurally suitable cross-surah candidates.
-  const usable = ayahs.filter((_, index) => index + minLength <= ayahs.length);
-  return pickEvenly(usable, count, offset).map((start, rangeIndex) => {
-    const startIndex = ayahs.findIndex(
-      (ayah) => ayah.surah_id === start.surah_id && ayah.ayah_number === start.ayah_number,
-    );
-    const span = Math.min(
-      maxLength,
-      Math.max(minLength, minLength + ((rangeIndex + offset) % Math.max(1, maxLength - minLength + 1))),
-    );
-    const end = ayahs[startIndex + span - 1];
-    if (!end) throw new Error("Unable to resolve Burhan Al-Itqan recitation range.");
-    return { type: "recite_range" as const, start, end };
-  });
-}
-
-function rangeProfileForJuz(juz: number, ayahCount: number) {
-  // Juzs dominated by short surahs need longer cross-surah passages.
-  // This intentionally permits:
-  // - start in the middle of a surah -> continue across one or more surahs -> stop mid-surah
-  // - start near the end of a surah -> continue into the next surah -> stop mid-surah
-  const shortSurahHeavy = juz === 30 || ayahCount < 120;
-
-  if (shortSurahHeavy) {
-    return {
-      minLength: 12,
-      maxLength: Math.min(24, Math.max(12, ayahCount - 1)),
-    };
+  for (let i = 0; i + 5 < ayahs.length; i++) {
+    candidates.push({
+      start: ayahs[i],
+      end: ayahs[i + 5],
+    });
   }
 
+  return shuffle(candidates)
+    .slice(0, Math.min(count, candidates.length))
+    .map(({ start, end }) => ({
+      type: "recite_range" as const,
+      start,
+      end,
+    }));
+}
+
+
+function rangeProfileForJuz(_juz: number, ayahCount: number) {
+  const fixedLength = 6;
   return {
-    minLength: 7,
-    maxLength: Math.min(14, Math.max(7, ayahCount - 1)),
+    minLength: Math.min(fixedLength, ayahCount),
+    maxLength: Math.min(fixedLength, ayahCount),
   };
 }
+
 
 export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber: number; questionCount?: number }) {
   const testNumber = Math.max(1, Math.min(10, input.testNumber));
@@ -194,7 +205,7 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
   const mcqCount = Math.max(0, Math.round((preset.mcq ?? 0) * scale));
 
   const questions: ItqanQuestionSpec[] = [
-    ...buildRanges(ayahs, reciteCount, rangeProfile.minLength, rangeProfile.maxLength, testNumber - 1),
+    ...buildRanges(ayahs, reciteCount),
     ...pickEvenly(words, wordCount, testNumber).map((candidate) => ({
       type: "fragment_recall" as const, mode: "word" as const,
       surah_id: candidate.surah_id, ayah_number: candidate.ayah_number, fragment: candidate.fragment, ayahs_after: 0,
@@ -232,8 +243,9 @@ export async function buildBurhanItqanBlueprint(input: { juz: number; testNumber
       test_number: testNumber,
       range_length: rangeProfile,
       range_length_unit: "ayahs_inclusive",
+      following_ayahs: 5,
       cross_surah_ranges: true,
-      short_surah_strategy: "variable_length_cross_surah",
+      short_surah_strategy: "fixed_six_ayah_passage",
       question_mix: { recite_range: reciteCount, word: wordCount, sentence: sentenceCount, ayah_and_next: ayahNextCount, mutashabihat: mutashabihatCount, mcq: mcqCount },
       cumulative: false,
       source_scope: `juz_${input.juz}`,
