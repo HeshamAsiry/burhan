@@ -43,23 +43,109 @@ async function getAyahs(juz: number) {
   return (data ?? []) as Ayah[];
 }
 
-function buildRanges(ayahs: Ayah[], count: number, minLength: number, maxLength: number, offset: number) {
-  const usable = ayahs.filter((_, index) => index + minLength <= ayahs.length);
+function groupAyahsBySurah(ayahs: Ayah[]) {
+  const groups: Ayah[][] = [];
+  for (const ayah of ayahs) {
+    const last = groups[groups.length - 1];
+    if (!last || last[0].surah_id !== ayah.surah_id) groups.push([ayah]);
+    else last.push(ayah);
+  }
+  return groups;
+}
 
+function isMiddleAyah(index: number, length: number) {
+  return length >= 3 && index > 0 && index < length - 1;
+}
+
+function middleEndIndex(length: number, offset: number) {
+  if (length <= 2) return null;
+  const first = Math.max(1, Math.floor(length * 0.25));
+  const last = Math.min(length - 2, Math.ceil(length * 0.75));
+  return first + (offset % Math.max(1, last - first + 1));
+}
+
+function buildCrossSurahRanges(ayahs: Ayah[], count: number, minLength: number, maxLength: number, offset: number) {
+  const groups = groupAyahsBySurah(ayahs);
+  const candidates: Array<{ start: Ayah; end: Ayah; pattern: string }> = [];
+
+  // Pattern A: middle of a surah -> middle of a later surah.
+  // Prefer crossing 2+ surah boundaries when the Juz has enough material.
+  for (let i = 0; i < groups.length; i++) {
+    const startGroup = groups[i];
+    for (let startIndex = 1; startIndex < startGroup.length - 1; startIndex++) {
+      for (let distance = 1; distance <= Math.min(3, groups.length - i - 1); distance++) {
+        const endGroup = groups[i + distance];
+        const endIndex = middleEndIndex(endGroup.length, startIndex + distance + offset);
+        if (endIndex == null) continue;
+        const start = startGroup[startIndex];
+        const end = endGroup[endIndex];
+        const startFlat = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
+        const endFlat = ayahs.findIndex((a) => a.surah_id === end.surah_id && a.ayah_number === end.ayah_number);
+        const span = endFlat - startFlat + 1;
+        if (span >= minLength && span <= maxLength) {
+          candidates.push({
+            start,
+            end,
+            pattern: distance >= 2 ? "middle_to_middle_multi_surah" : "middle_to_middle_cross_surah",
+          });
+        }
+      }
+    }
+  }
+
+  // Pattern B: last few ayahs of a surah -> middle of the next/later surah.
+  for (let i = 0; i < groups.length - 1; i++) {
+    const startGroup = groups[i];
+    const endGroup = groups[i + 1];
+    const startFrom = Math.max(0, startGroup.length - 3);
+    for (let startIndex = startFrom; startIndex < startGroup.length; startIndex++) {
+      const endIndex = middleEndIndex(endGroup.length, startIndex + offset);
+      if (endIndex == null) continue;
+      const start = startGroup[startIndex];
+      const end = endGroup[endIndex];
+      const startFlat = ayahs.findIndex((a) => a.surah_id === start.surah_id && a.ayah_number === start.ayah_number);
+      const endFlat = ayahs.findIndex((a) => a.surah_id === end.surah_id && a.ayah_number === end.ayah_number);
+      const span = endFlat - startFlat + 1;
+      if (span >= minLength && span <= maxLength) {
+        candidates.push({ start, end, pattern: "end_to_middle_next_surah" });
+      }
+    }
+  }
+
+  const unique = new Map<string, { start: Ayah; end: Ayah; pattern: string }>();
+  for (const candidate of candidates) {
+    const key = `${candidate.start.surah_id}:${candidate.start.ayah_number}-${candidate.end.surah_id}:${candidate.end.ayah_number}`;
+    if (!unique.has(key)) unique.set(key, candidate);
+  }
+
+  const pool = Array.from(unique.values());
+  return pickEvenly(pool, count, offset).map(({ start, end }) => ({
+    type: "recite_range" as const,
+    start,
+    end,
+  }));
+}
+
+function buildRanges(ayahs: Ayah[], count: number, minLength: number, maxLength: number, offset: number) {
+  if (count <= 0) return [];
+
+  // Cross-surah patterns are preferred so short-surah Juzs (especially Juz 30)
+  // do not collapse into trivial single-surah passages.
+  const crossSurah = buildCrossSurahRanges(ayahs, count, minLength, maxLength, offset);
+  if (crossSurah.length >= count) return crossSurah;
+
+  // Fallback: preserve contiguous Quran order when there are not enough
+  // structurally suitable cross-surah candidates.
+  const usable = ayahs.filter((_, index) => index + minLength <= ayahs.length);
   return pickEvenly(usable, count, offset).map((start, rangeIndex) => {
     const startIndex = ayahs.findIndex(
       (ayah) => ayah.surah_id === start.surah_id && ayah.ayah_number === start.ayah_number,
     );
-
-    // In short-surah Juzs (especially Juz 30), do not force the test to stop
-    // at a surah boundary. Vary the length so a passage can start/end inside
-    // different surahs and naturally span 2–3 surahs.
     const span = Math.min(
       maxLength,
       Math.max(minLength, minLength + ((rangeIndex + offset) % Math.max(1, maxLength - minLength + 1))),
     );
     const end = ayahs[startIndex + span - 1];
-
     if (!end) throw new Error("Unable to resolve Burhan Al-Itqan recitation range.");
     return { type: "recite_range" as const, start, end };
   });
