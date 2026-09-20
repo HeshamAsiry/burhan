@@ -18,10 +18,7 @@ function buildPromptFragment(text: string, side: "start" | "end", maxWords = 6) 
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return text;
 
-  // Both endpoints identify the ayah by its beginning. For a range question,
-  // the ending anchor must not be taken from the end of the ayah (e.g.
-  // "…فَوْقَكُمْ سَبْعًا شِدَادًا"). The student is being asked to stop when
-  // they reach the ayah that begins "وَبَنَيْنَا فَوْقَكُمْ…".
+  // Both endpoints identify the ayah by its beginning.
   const count = Math.min(maxWords, words.length);
   const fragment = words.slice(0, count).join(" ");
 
@@ -136,8 +133,7 @@ export async function generateReciteRangeQuestion(input: {
     transitionDistance: last.page_number && first.page_number ? last.page_number - first.page_number : 0,
   });
 
-  // Generated recitation questions must always identify the starting ayah
-  // from the actual beginning of that ayah, never from an internal anchor.
+  // Both endpoints intentionally use the beginning of their ayah.
   const startFragment = buildPromptFragment(first.text_ar, "start");
   const startLabel = `قوله تعالى: «${startFragment}»`;
   const endFragment = buildPromptFragment(last.text_ar, "end");
