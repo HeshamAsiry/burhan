@@ -148,17 +148,63 @@ function buildCrossSurahRanges(ayahs: Ayah[], count: number, minLength: number, 
   }));
 }
 
-function buildRanges(ayahs: Ayah[], count: number) {
+function reciteLengthBounds(testNumber: number, ayahCount: number) {
+  // Difficulty increases through longer possible recitation passages.
+  // Every question remains variable, but never exceeds 30 ayahs.
+  const maxByTest = Math.min(30, 5 + Math.ceil(testNumber * 2.5));
+  const minLength = Math.min(5, ayahCount);
+  const maxLength = Math.min(maxByTest, ayahCount);
+  return { minLength, maxLength };
+}
+
+function numberToArabicWord(value: number) {
+  const words: Record<number, string> = {
+    5: "خمس",
+    6: "ست",
+    7: "سبع",
+    8: "ثماني",
+    9: "تسع",
+    10: "عشر",
+    11: "إحدى عشرة",
+    12: "اثنتا عشرة",
+    13: "ثلاث عشرة",
+    14: "أربع عشرة",
+    15: "خمس عشرة",
+    16: "ست عشرة",
+    17: "سبع عشرة",
+    18: "ثماني عشرة",
+    19: "تسع عشرة",
+    20: "عشرين",
+    21: "إحدى وعشرين",
+    22: "اثنتين وعشرين",
+    23: "ثلاثًا وعشرين",
+    24: "أربعًا وعشرين",
+    25: "خمسًا وعشرين",
+    26: "ستًا وعشرين",
+    27: "سبعًا وعشرين",
+    28: "ثمانيًا وعشرين",
+    29: "تسعًا وعشرين",
+    30: "ثلاثين",
+  };
+  return words[value] ?? String(value);
+}
+
+function buildRanges(ayahs: Ayah[], count: number, testNumber: number) {
   if (count <= 0) return [];
 
-  // Every recitation question is exactly six consecutive ayahs:
-  // the starting ayah + five ayahs after it.
-  const candidates: Array<{ start: Ayah; end: Ayah }> = [];
+  const { minLength, maxLength } = reciteLengthBounds(testNumber, ayahs.length);
+  const candidates: Array<{ start: Ayah; end: Ayah; ayahCount: number }> = [];
 
-  for (let i = 0; i + 5 < ayahs.length; i++) {
+  for (let i = 0; i < ayahs.length; i++) {
+    const maxForStart = Math.min(maxLength, ayahs.length - i);
+    if (maxForStart < minLength) continue;
+
+    // Each candidate gets a random length in the allowed difficulty band.
+    const length = minLength + secureRandomInt(maxForStart - minLength + 1);
     candidates.push({
       start: ayahs[i],
-      end: ayahs[i + 5],
+      end: ayahs[i + length - 1],
+      ayahCount: length,
     });
   }
 
@@ -171,13 +217,8 @@ function buildRanges(ayahs: Ayah[], count: number) {
     }));
 }
 
-
-function rangeProfileForJuz(_juz: number, ayahCount: number) {
-  const fixedLength = 6;
-  return {
-    minLength: Math.min(fixedLength, ayahCount),
-    maxLength: Math.min(fixedLength, ayahCount),
-  };
+function rangeProfileForJuz(testNumber: number, ayahCount: number) {
+  return reciteLengthBounds(testNumber, ayahCount);
 }
 
 
