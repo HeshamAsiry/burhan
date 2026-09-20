@@ -10,16 +10,19 @@ export type ItqanQuestionSpec =
   | { type: "mcq"; surah_id: number; ayah_number: number };
 
 const PRESETS: Record<number, Record<string, number>> = {
-  1: { recite: 4, word: 2, sentence: 1, ayah_next: 2, mcq: 1 },
-  2: { recite: 4, word: 2, sentence: 1, ayah_next: 2, mutashabihat: 1, mcq: 1 },
-  3: { recite: 3, word: 2, sentence: 1, ayah_next: 2, mutashabihat: 1, mcq: 1 },
-  4: { recite: 3, word: 2, sentence: 1, ayah_next: 2, mutashabihat: 1, mcq: 1 },
-  5: { recite: 3, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 2, mcq: 1 },
-  6: { recite: 3, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 2, mcq: 1 },
-  7: { recite: 2, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 3, mcq: 1 },
-  8: { recite: 2, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 3, mcq: 1 },
-  9: { recite: 2, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 3, mcq: 1 },
-  10: { recite: 2, word: 1, sentence: 1, ayah_next: 2, mutashabihat: 3, mcq: 1 },
+  // Every Burhan Al-Itqan test keeps the same 10-question structure.
+  // Difficulty is controlled by the selection/range rules below, not by
+  // changing the question mix.
+  1: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  2: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  3: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  4: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  5: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  6: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  7: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  8: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  9: { recite: 4, mutashabihat: 2, ayah_next: 4 },
+  10: { recite: 4, mutashabihat: 2, ayah_next: 4 },
 };
 
 type Ayah = { surah_id: number; ayah_number: number };
