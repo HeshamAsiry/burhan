@@ -53,10 +53,6 @@ function groupAyahsBySurah(ayahs: Ayah[]) {
   return groups;
 }
 
-function isMiddleAyah(index: number, length: number) {
-  return length >= 3 && index > 0 && index < length - 1;
-}
-
 function middleEndIndex(length: number, offset: number) {
   if (length <= 2) return null;
   const first = Math.max(1, Math.floor(length * 0.25));
