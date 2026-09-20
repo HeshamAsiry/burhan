@@ -128,7 +128,7 @@ export async function generateTest(input: {
       id: crypto.randomUUID(),
       status: "generated",
       level: effectiveLevel,
-      test_type: input.testType ?? "custom",
+      test_type: input.style === "burhan_itqan" ? "non_cumulative" : input.testType ?? "custom",
       juz: input.juz,
       style: input.style ?? "default",
       test_number: input.style === "burhan_itqan" ? input.testNumber ?? 1 : null,
