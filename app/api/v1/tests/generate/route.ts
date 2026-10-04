@@ -90,6 +90,7 @@ const schema = z
       .enum(["from_30_to_1", "from_1_to_30"])
       .default("from_30_to_1"),
     questions: z.array(question).min(1).max(100).optional(),
+    include_answers: z.boolean().default(false),
   })
   .refine(
     (value) => Boolean(value.questions?.length) || Boolean(value.question_count),
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
         persist: parsed.data.persist,
         questionCount: parsed.data.question_count,
         questions: parsed.data.questions,
+        includeAnswers: parsed.data.include_answers,
       }),
     );
   } catch (error) {
